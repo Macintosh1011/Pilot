@@ -1,1 +1,24 @@
 .DS_Store
+
+# dependencies
+node_modules/
+dashboard/node_modules/
+
+# convex
+.convex/
+
+# next
+dashboard/.next/
+dashboard/out/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+dashboard/.env
+dashboard/.env.*
+!dashboard/.env.example
+
+# logs
+*.log
+npm-debug.log*
