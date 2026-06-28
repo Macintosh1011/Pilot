@@ -57,9 +57,12 @@ extension Font {
     static func serif(_ size: CGFloat, weight: CGFloat = 400, italic: Bool = false,
                       opsz: CGFloat? = nil) -> Font {
         let o = opsz ?? min(max(size, 6), 72)
+        // Address each face by its PostScript name — the upright + italic share the family
+        // "Newsreader 16pt", so a bare `.family` lookup is ambiguous and silently falls back
+        // to the system sans. The PostScript name pins the exact face the variation axes apply to.
         let ui: UIFont = italic
             ? .variable(name: "Newsreader16pt-Italic", size: size, axes: ["wght": weight, "opsz": o])
-            : .variable(family: "Newsreader 16pt", size: size, axes: ["wght": weight, "opsz": o])
+            : .variable(name: "Newsreader16pt-Regular", size: size, axes: ["wght": weight, "opsz": o])
         return Font(ui)
     }
 
