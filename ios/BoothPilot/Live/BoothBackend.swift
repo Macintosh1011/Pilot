@@ -56,6 +56,7 @@ private enum Fn {
     static let captureContact = "sessions:captureContact" // mutation (GPT capture_contact)
     static let lookupVisitor = "fiber:lookupVisitor"  // action    (GPT lookup_visitor)
     static let finalize = "finalize:finalize"         // action    (GPT finalize_session)
+    static let vapiStartConfig = "vapi:startConfig"   // action    (Vapi transient assistant config)
     static let watchSession = "sessions:get"          // query
     static let watchDemoState = "demoState:bySession" // query
     static let watchPresence = "presence:latest"      // query
@@ -124,6 +125,20 @@ final class BoothBackend: ObservableObject {
             sessionId = id
             subscribeToSession(id)
         } catch { print("[Convex] createSession:", error) }
+    }
+
+    /// Fetch the transient Vapi assistant JSON config for the current session.
+    func vapiAssistantConfig() async -> String? {
+        guard let id = sessionId else { return nil }
+        do {
+            return try await client.action(
+                Fn.vapiStartConfig,
+                with: ["sessionId": id, "deviceId": BoothConfig.deviceId]
+            )
+        } catch {
+            print("[Convex] vapiAssistantConfig:", error)
+            return nil
+        }
     }
 
     /// Persist a transcript turn — scoring/badge/email read this as ground truth (INTERFACES §1.3).

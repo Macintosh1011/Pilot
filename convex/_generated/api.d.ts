@@ -24,6 +24,7 @@ import type * as presence from "../presence.js";
 import type * as scoring from "../scoring.js";
 import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
+import type * as vapi from "../vapi.js";
 
 import type {
   ApiFromModules,
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   scoring: typeof scoring;
   seed: typeof seed;
   sessions: typeof sessions;
+  vapi: typeof vapi;
 }>;
 
 /**

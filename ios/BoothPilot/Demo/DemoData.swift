@@ -65,7 +65,7 @@ enum Demo {
     }
 }
 
-/// Drives the booth through its states. With Convex + an OpenAI key configured it runs
+/// Drives the booth through its states. With Convex + a Vapi public key configured it runs
 /// LIVE: presence triggers the greet, the voice loop drives the spark + caption, GPT
 /// tool calls write `demoState`, and the finished badge comes from Convex. With no
 /// secrets it runs the hands-free offline demo (canned beats; tap to skip forward).
@@ -79,8 +79,8 @@ final class Director: ObservableObject {
     /// One Convex client for the app lifetime. Always present (real deployment URL baked into
     /// `BoothConfig`); its calls no-op cleanly when offline, so the booth never stalls.
     let backend = BoothBackend()
-    /// Phase 2 voice loop — nil unless an OpenAI key is configured. `nil` ⇒ scripted Phase 1.
-    let voice: RealtimeVoice?
+    /// Live voice loop — nil unless a Vapi public key is configured. `nil` ⇒ scripted Phase 1.
+    let voice: VapiVoice?
     private var cancellables = Set<AnyCancellable>()
     private var transition: DispatchWorkItem?
     private var beatTimer: Timer?
@@ -89,7 +89,7 @@ final class Director: ObservableObject {
     var live: Bool { voice != nil }
 
     init() {
-        voice = RealtimeVoice(backend: backend)
+        voice = VapiVoice(backend: backend)
         // Republish backend changes so the Badge screen re-renders when the live card arrives.
         backend.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
         if live {

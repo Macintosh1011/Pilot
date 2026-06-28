@@ -1,6 +1,7 @@
 import { httpAction } from "./_generated/server";
 import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
+import { vapiChat } from "./vapi";
 
 const http = httpRouter();
 
@@ -63,6 +64,12 @@ http.route({
     }
     return json({ ok: true });
   }),
+});
+
+http.route({
+  path: "/vapi/chat/completions",
+  method: "POST",
+  handler: vapiChat,
 });
 
 export default http;

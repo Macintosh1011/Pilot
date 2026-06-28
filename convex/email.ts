@@ -21,8 +21,16 @@ their words. One clear, soft next step (a quick call or a sandbox), never pushy.
 words. Plain, human, founder-to-operator tone. No emoji, no hype, no fake stats. Sign off
 as "— The Acme Analytics team". You may include their discount code once, naturally.`;
 
+const DEFAULT_RESEND_FROM = "Acme Analytics <onboarding@resend.dev>";
+
+const sendResultValidator = v.union(
+  v.object({ ok: v.literal(true), error: v.optional(v.string()) }),
+  v.object({ ok: v.literal(false), error: v.string() }),
+);
+
 export const approve = mutation({
   args: { sessionId: v.id("sessions") },
+  returns: v.null(),
   handler: async (ctx, { sessionId }) => {
     await ctx.db.patch(sessionId, { reviewStatus: "approved" });
     return null;
@@ -35,6 +43,7 @@ export const edit = mutation({
     subject: v.string(),
     body: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, { sessionId, subject, body }) => {
     await ctx.db.patch(sessionId, {
       emailDraft: { subject, body },
@@ -46,6 +55,7 @@ export const edit = mutation({
 
 export const discard = mutation({
   args: { sessionId: v.id("sessions") },
+  returns: v.null(),
   handler: async (ctx, { sessionId }) => {
     await ctx.db.patch(sessionId, { reviewStatus: "discarded" });
     return null;
@@ -54,6 +64,7 @@ export const discard = mutation({
 
 export const send = action({
   args: { sessionId: v.id("sessions") },
+  returns: sendResultValidator,
   handler: async (ctx, { sessionId }): Promise<{ ok: boolean; error?: string }> => {
     const session = await ctx.runQuery(internal.sessions.getInternal, {
       sessionId,
@@ -75,6 +86,7 @@ export const send = action({
     if (!apiKey) return { ok: false, error: "no resend key" };
 
     try {
+      const from = process.env.RESEND_FROM?.trim() || DEFAULT_RESEND_FROM;
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -82,21 +94,25 @@ export const send = action({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          from:
-            process.env.RESEND_FROM ??
-            "Acme Analytics <booth@example.com>",
+          from,
           to: session.email,
           subject: session.emailDraft.subject,
           text: session.emailDraft.body,
+          reply_to: from,
         }),
       });
       if (!response.ok) {
-        return { ok: false, error: `resend ${response.status}` };
+        const bodyText = (await response.text()).trim().slice(0, 200);
+        return {
+          ok: false,
+          error: `resend ${response.status}: ${bodyText}`,
+        };
       }
       await ctx.runMutation(internal.email.markSent, { sessionId });
       return { ok: true };
-    } catch {
-      return { ok: false, error: "resend failed" };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      return { ok: false, error: `resend failed: ${message.slice(0, 200)}` };
     }
   },
 });

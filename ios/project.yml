@@ -10,6 +10,9 @@ packages:
   convex-swift:
     url: https://github.com/get-convex/convex-swift
     from: "0.8.1"
+  Vapi:
+    url: https://github.com/VapiAI/ios
+    branch: main
 
 settings:
   base:
@@ -31,6 +34,7 @@ targets:
     dependencies:
       - package: convex-swift
         product: ConvexMobile
+      - package: Vapi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.parkt.boothpilot
