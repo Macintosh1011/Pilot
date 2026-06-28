@@ -15,6 +15,9 @@ final class FrontCameraSession: NSObject, ObservableObject, AVCaptureMetadataOut
     private var onCode: ((String) -> Void)?
     private var scanned = false
     private var configured = false
+    private let photoOutput = AVCapturePhotoOutput()
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var photoDelegate: PhotoCaptureDelegate?
 
     func start(onCode: @escaping (String) -> Void) {
         guard !configured else { return }
@@ -48,11 +51,35 @@ final class FrontCameraSession: NSObject, ObservableObject, AVCaptureMetadataOut
             output.setMetadataObjectsDelegate(self, queue: .main)
             output.metadataObjectTypes = [.qr]
         }
+        if session.canAddOutput(photoOutput) { session.addOutput(photoOutput) }
         session.commitConfiguration()
+        // Drives upright capture orientation (front cam is portrait-mounted on iPad).
+        rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.session.startRunning()
             DispatchQueue.main.async { self?.isReady = true }
+        }
+    }
+
+    /// Grab a single JPEG frame (the visitor's pose) for their Booth Badge. nil if unavailable.
+    func capturePhoto() async -> Data? {
+        guard session.isRunning, session.outputs.contains(where: { $0 === photoOutput }) else { return nil }
+        return await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
+            if let conn = photoOutput.connection(with: .video) {
+                let angle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90
+                if conn.isVideoRotationAngleSupported(angle) { conn.videoRotationAngle = angle }
+                if conn.isVideoMirroringSupported { conn.isVideoMirrored = true }
+            }
+            let settings = photoOutput.availablePhotoCodecTypes.contains(.jpeg)
+                ? AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+                : AVCapturePhotoSettings()
+            let delegate = PhotoCaptureDelegate { [weak self] data in
+                self?.photoDelegate = nil
+                cont.resume(returning: data)
+            }
+            photoDelegate = delegate // retain until the delegate fires
+            photoOutput.capturePhoto(with: settings, delegate: delegate)
         }
     }
 
@@ -77,6 +104,18 @@ final class FrontCameraSession: NSObject, ObservableObject, AVCaptureMetadataOut
         else { return }
         scanned = true
         onCode?(value)
+    }
+}
+
+/// One-shot still-capture delegate; always calls completion (nil on failure) so the awaiting
+/// continuation never leaks.
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    private let completion: (Data?) -> Void
+    init(completion: @escaping (Data?) -> Void) { self.completion = completion }
+
+    func photoOutput(_ output: AVCapturePhotoOutput,
+                     didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        completion(photo.fileDataRepresentation())
     }
 }
 

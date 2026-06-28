@@ -3,6 +3,8 @@ import SwiftUI
 /// 1 · ATTRACT — a printed poster that's quietly alive. Spark slowly turning,
 /// a big serif line typing itself out, cut-paper clay shapes.
 struct AttractScreen: View {
+    var onStart: () -> Void = {}
+
     var body: some View {
         ZStack {
             // cut-paper shapes
@@ -37,7 +39,7 @@ struct AttractScreen: View {
                 Spark(mode: .idle)
                     .frame(width: 248, height: 248)
 
-                VStack(spacing: 26) {
+                VStack(spacing: 30) {
                     TypeText(
                         text: "Tell me what you’re *building*.",
                         font: .serif(76, weight: 500),
@@ -45,8 +47,17 @@ struct AttractScreen: View {
                     )
                     .frame(maxWidth: 1000)
 
-                    Text("STEP UP — IT TAKES ABOUT SIXTY SECONDS")
-                        .font(.mono(15, weight: 500))
+                    Button(action: onStart) {
+                        Text("START")
+                            .font(.mono(18, weight: 600)).tracking(4).foregroundColor(.paper)
+                            .padding(.horizontal, 64).padding(.vertical, 22)
+                            .background(Capsule().fill(Color.ink))
+                            .shadow(color: Color.ink.opacity(0.28), radius: 18, x: 0, y: 12)
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("TAP START — IT TAKES ABOUT SIXTY SECONDS")
+                        .font(.mono(14, weight: 500))
                         .tracking(3)
                         .foregroundColor(.muted)
                 }
@@ -54,7 +65,7 @@ struct AttractScreen: View {
             .padding(.horizontal, 120)
 
             // sponsors, pinned bottom
-            Text("POWERED BY OPENAI · CONVEX · FIBER.AI · ELEVENLABS")
+            Text("POWERED BY OPENAI · CONVEX · FIBER.AI · VAPI")
                 .font(.mono(12, weight: 500))
                 .tracking(3)
                 .foregroundColor(.muted.opacity(0.7))

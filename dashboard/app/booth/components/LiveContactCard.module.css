@@ -1,0 +1,446 @@
+/* ─── Card shell ─────────────────────────────────────────────────────────── */
+
+.card {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 1.75rem;
+  background: var(--card);
+  padding: 1.1rem;
+  box-shadow: 0 4px 32px rgba(20, 20, 19, 0.07);
+  width: 100%;
+}
+
+/* ─── Listening / empty state ────────────────────────────────────────────── */
+
+.listeningCard {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.listeningLabel {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.listeningHint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-transform: uppercase;
+  line-height: 1.6;
+  max-width: 22ch;
+}
+
+/* ─── Animated section wrapper ───────────────────────────────────────────── */
+
+/* Rise keyframe is defined globally in globals.css — just reference by name. */
+.section {
+  animation: rise 300ms ease both;
+}
+
+/* ─── Eyebrow / section label ────────────────────────────────────────────── */
+
+.eyebrow {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+/* ─── Chip base (scoped semantic variants) ───────────────────────────────── */
+
+.chipBase {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--chip);
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.chipVerified {
+  composes: chipBase;
+  border-color: rgba(90, 122, 88, 0.35);
+  background: rgba(90, 122, 88, 0.1);
+  color: var(--success);
+}
+
+.chipMismatch {
+  composes: chipBase;
+  border-color: rgba(176, 87, 48, 0.38);
+  background: rgba(176, 87, 48, 0.1);
+  color: var(--rust);
+}
+
+.chipNeutral {
+  composes: chipBase;
+  color: var(--muted);
+}
+
+.chipDecisionMaker {
+  composes: chipBase;
+  border-color: rgba(204, 120, 92, 0.32);
+  background: rgba(204, 120, 92, 0.08);
+  color: var(--clay);
+}
+
+/* ─── Identity section ───────────────────────────────────────────────────── */
+
+.identitySection {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+/* Photo frame — clay border, subtle inset letterpress feel */
+.photoFrame {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 2px solid var(--clay);
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 3px rgba(20, 20, 19, 0.12),
+    0 1px 4px rgba(20, 20, 19, 0.08);
+}
+
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photoPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.cameraIcon {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.identityText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.28rem;
+  align-content: start;
+}
+
+.visitorName {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--ink);
+  /* Prevent overflow on long names */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visitorMeta {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+/* ─── Fiber firmographics ────────────────────────────────────────────────── */
+
+.fiberPanel {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.fiberTopline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.fiberMetaLine {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  line-height: 1.65;
+}
+
+.fiberPersonRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.fiberPersonMeta {
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.mismatchAlert {
+  margin: 0.2rem 0 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(176, 87, 48, 0.07);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--rust);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Needs panel ────────────────────────────────────────────────────────── */
+
+.needsPanel {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.useCaseText {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  color: var(--ink);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.problemsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+/* ─── Urgency strip ──────────────────────────────────────────────────────── */
+
+.urgencyStrip {
+  display: grid;
+  gap: 0.32rem;
+  border-left: 3px solid currentColor;
+  border-radius: 0 0.85rem 0.85rem 0;
+  background: rgba(20, 20, 19, 0.025);
+  padding: 0.6rem 0.8rem;
+}
+
+.urgencyLow    { color: var(--urgency-low); }
+.urgencyMedium { color: var(--urgency-med); }
+.urgencyHigh   { color: var(--clay); }
+
+.urgencyChipBase {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.28rem 0.58rem;
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.urgencyChipLow {
+  composes: urgencyChipBase;
+  border-color: rgba(107, 107, 99, 0.35);
+  background: rgba(107, 107, 99, 0.07);
+  color: var(--urgency-low);
+}
+
+.urgencyChipMedium {
+  composes: urgencyChipBase;
+  border-color: rgba(196, 154, 108, 0.38);
+  background: rgba(196, 154, 108, 0.07);
+  color: var(--urgency-med);
+}
+
+.urgencyChipHigh {
+  composes: urgencyChipBase;
+  border-color: rgba(204, 120, 92, 0.38);
+  background: rgba(204, 120, 92, 0.08);
+  color: var(--clay);
+}
+
+.urgencyQuote {
+  font-family: var(--font-serif);
+  font-size: 0.87rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.45;
+  display: block;
+}
+
+/* ─── Confidence meter ───────────────────────────────────────────────────── */
+
+.confidenceSection {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.confidenceTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.confidenceLabel {
+  margin: 0 0 0.18rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+.scoreNumber {
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.85;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+}
+
+/* Thin confidence bar — same track/fill as globals but with grow-in animation */
+.meterTrack {
+  position: relative;
+  overflow: hidden;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 19, 0.08);
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--clay);
+  /* Smooth transition for live value updates */
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Reveal from left on section mount */
+  animation: barReveal 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes barReveal {
+  from { clip-path: inset(0 100% 0 0 round 999px); }
+  to   { clip-path: inset(0 0%   0 0 round 999px); }
+}
+
+.meterTick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(20, 20, 19, 0.18);
+  pointer-events: none;
+}
+
+.meterTickQ1 { left: 25%; }
+.meterTickQ2 { left: 50%; }
+.meterTickQ3 { left: 75%; }
+
+.reasonList {
+  margin: 0.1rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.reasonItem {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  padding-left: 0.8rem;
+  position: relative;
+}
+
+.reasonItem::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--clay);
+  font-weight: 600;
+}
+
+.reasonEmpty {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-style: italic;
+}
+
+/* ─── Divider between sections ───────────────────────────────────────────── */
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: 0;
+}

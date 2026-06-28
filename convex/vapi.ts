@@ -98,14 +98,13 @@ export const startConfig = action({
         provider: "custom-llm",
         url: `${process.env.CONVEX_SITE_URL}/vapi/chat/completions?secret=${process.env.VAPI_SERVER_SECRET}`,
         model: process.env.OPENAI_REASON_MODEL ?? "gpt-5.4",
-        // Vapi does NOT reliably forward the ?secret= query param to the custom-LLM, which caused
-        // pipeline-error-custom-llm-401-unauthorized on every turn. Send it as a header instead —
-        // the handler accepts x-vapi-secret, and Vapi's custom-llm `headers` property forwards it.
+        // Vapi does NOT reliably forward the ?secret= query param to the custom-LLM (causes
+        // pipeline-error-custom-llm-401). Send it as a header too — the handler accepts x-vapi-secret.
         headers: { "x-vapi-secret": process.env.VAPI_SERVER_SECRET ?? "" },
       },
       voice: { provider: "vapi", voiceId: "Elliot" },
       firstMessage:
-        "Hey there — to get started, hold your LinkedIn QR up to the camera and I'll pull up your world.",
+        "Hey, welcome! Go ahead and hold your LinkedIn QR up to the camera, and I'll pull up your world.",
       metadata: { sessionId, deviceId: deviceId ?? "ipad-1" },
     };
   },
@@ -121,16 +120,6 @@ async function produceAssistantContent(
     { role: "system", content: BOOTH_SYSTEM_PROMPT },
     ...incomingMessages,
   ];
-
-  // Inject verified identity (post-LinkedIn-scan) so the agent greets by name every turn.
-  if (sessionId) {
-    const session = await ctx.runQuery(internal.sessions.getInternal, { sessionId });
-    const identityNote = buildIdentityNote(session);
-    if (identityNote) {
-      // Insert after the system prompt so it's always the freshest context before any history.
-      messages.splice(1, 0, { role: "system", content: identityNote });
-    }
-  }
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     const assistant = await callOpenAI(messages, model, sessionId !== null);
@@ -158,12 +147,7 @@ async function produceAssistantContent(
     }
   }
 
-  // The model used every tool iteration without ever emitting a spoken line (common on a rich
-  // first turn where it fires lookup_visitor → set_needs → show_view → highlight back to back).
-  // Force one final completion with tools disabled so the visitor always hears a real, context-
-  // aware reply grounded in the tool results — never the generic fallback.
-  const closing = await callOpenAI(messages, model, false);
-  return closing.content.trim() || FALLBACK_LINE;
+  return FALLBACK_LINE;
 }
 
 async function callOpenAI(
@@ -413,55 +397,20 @@ function contentToText(content: unknown): string {
   }
 }
 
-// Vapi's custom-llm transport reads an OpenAI-style streaming SSE response, not a single JSON
-// body. We've already computed the full reply (tools run server-side), so emit it as one content
-// delta + a stop chunk + the [DONE] sentinel. A plain JSON body makes Vapi error and end the call.
 function chatCompletion(content: string, model: string) {
-  const base = {
+  return json({
     id: `chatcmpl_${Date.now()}`,
-    object: "chat.completion.chunk",
+    object: "chat.completion",
     created: Math.floor(Date.now() / 1000),
     model,
-  };
-  const chunks = [
-    { ...base, choices: [{ index: 0, delta: { role: "assistant", content }, finish_reason: null }] },
-    { ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
-  ];
-  const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
-  return new Response(body, {
-    status: 200,
-    headers: {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache",
-      connection: "keep-alive",
-    },
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", content },
+        finish_reason: "stop",
+      },
+    ],
   });
-}
-
-function buildIdentityNote(session: any): string | null {
-  if (!session) return null;
-  const name = session.visitorName ?? session.fiber?.person?.fullName;
-  const company = session.fiber?.company?.name ?? session.company;
-  if (!name && !company) return null;
-
-  const role = session.role ?? session.fiber?.person?.title;
-  const who = [name, role && company ? `${role} at ${company}` : role ?? (company ? `at ${company}` : undefined)]
-    .filter(Boolean)
-    .join(", ");
-
-  const details: string[] = [];
-  const industry = session.fiber?.company?.industry;
-  const employeeCount = session.fiber?.company?.employeeCount;
-  const funding = session.fiber?.company?.funding;
-  if (industry) details.push(industry);
-  if (employeeCount) details.push(`~${employeeCount} employees`);
-  if (funding) details.push(funding);
-
-  return (
-    `VERIFIED VISITOR (from their scanned LinkedIn): ${who}.` +
-    (details.length ? ` ${details.join(", ")}.` : "") +
-    ` Right away, greet them by name and say their name, role, and company back to them in one warm sentence, then continue naturally. Don't re-ask for anything in this note.`
-  );
 }
 
 function json(body: unknown, status = 200) {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 5 · BADGE (finale) — an editorial collectible like a letterpress bookplate.
 /// Cream stock, ink + clay, the spark. Reveals in sequence.
@@ -6,6 +7,7 @@ struct BadgeScreen: View {
     var onRestart: () -> Void = {}
     var live: BadgeDoc? = nil
     var liveName: String? = nil
+    var photoURL: String? = nil
     var badgeURL: String = "https://boothpilot.dev/b/preview"
     var isLive: Bool = false
 
@@ -30,6 +32,13 @@ struct BadgeScreen: View {
     @State private var badgeHasArrived = false
 
     private var firstName: String { visitorName.split(separator: " ").first.map(String.init) ?? visitorName }
+
+    /// Stable 3-digit badge number derived from the session id (matches the web badge's hash).
+    private var badgeNumber: String {
+        let id = badgeURL.split(separator: "/").last.map(String.init) ?? badgeURL
+        let n = id.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
+        return String(format: "%03d", (n % 900) + 100)
+    }
 
     var body: some View {
         ZStack {
@@ -79,11 +88,25 @@ struct BadgeScreen: View {
             HStack {
                 Wordmark(size: 12, tracking: 3)
                 Spacer()
-                Text("NO. 047").font(.mono(11)).tracking(2).foregroundColor(.muted)
+                Text("NO. \(badgeNumber)").font(.mono(11)).tracking(2).foregroundColor(.muted)
             }
 
             VStack(spacing: 0) {
-                Spark(mode: .speaking).frame(width: 128, height: 128).padding(.bottom, 18)
+                Group {
+                    if let photoURL, let url = URL(string: photoURL) {
+                        AsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Spark(mode: .speaking)
+                        }
+                        .frame(width: 128, height: 128)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Color.clay, lineWidth: 2))
+                    } else {
+                        Spark(mode: .speaking).frame(width: 128, height: 128)
+                    }
+                }
+                .padding(.bottom, 18)
                 Text("YOUR ARCHETYPE").font(.mono(12, weight: 600)).tracking(4)
                     .foregroundColor(.clay).padding(.bottom, 14)
                 TypeText(text: archetype, font: .serif(50, weight: 500),
@@ -167,9 +190,14 @@ struct BadgeScreen: View {
 
             HStack(spacing: 14) {
                 ShareLink(item: URL(string: badgeURL) ?? URL(string: "https://boothpilot.dev")!) {
-                    Text("SHARE BADGE").font(.mono(15, weight: 500)).tracking(1).foregroundColor(.paper)
+                    Text("SHARE").font(.mono(15, weight: 500)).tracking(1).foregroundColor(.paper)
                         .frame(maxWidth: .infinity).padding(.vertical, 19)
                         .background(Capsule().fill(Color.ink))
+                }
+                Button(action: printBadge) {
+                    Text("PRINT").font(.mono(15, weight: 500)).tracking(1).foregroundColor(.paper)
+                        .frame(maxWidth: .infinity).padding(.vertical, 19)
+                        .background(Capsule().fill(Color.clay))
                 }
                 Button(action: onRestart) {
                     Text("↻").font(.system(size: 22)).foregroundColor(.ink)
@@ -179,10 +207,132 @@ struct BadgeScreen: View {
             }
             .buttonStyle(.plain)
 
-            Text("POWERED BY OPENAI · CONVEX · FIBER.AI · ELEVENLABS")
+            Text("POWERED BY OPENAI · CONVEX · FIBER.AI · VAPI")
                 .font(.mono(11)).tracking(2.5).foregroundColor(.muted.opacity(0.65))
                 .frame(maxWidth: .infinity)
         }
         .frame(width: 380)
+    }
+
+    // MARK: Print (AirPrint a keepsake photo card)
+
+    private func printBadge() {
+        Task {
+            var photo: UIImage?
+            if let s = photoURL, let url = URL(string: s),
+               let (data, _) = try? await URLSession.shared.data(from: url) {
+                photo = UIImage(data: data)
+            }
+            await MainActor.run { presentPrint(photo: photo) }
+        }
+    }
+
+    @MainActor private func presentPrint(photo: UIImage?) {
+        let card = BadgePrintCard(
+            visitorName: visitorName, archetype: archetype, compliment: compliment,
+            discountCode: discountCode,
+            stats: stats.map { (label: $0.label, value: $0.value, pct: $0.pct) },
+            photo: photo, badgeURL: badgeURL)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        guard let image = renderer.uiImage else { return }
+
+        let controller = UIPrintInteractionController.shared
+        let info = UIPrintInfo(dictionary: nil)
+        info.outputType = .photo
+        info.jobName = "BoothPilot Badge"
+        controller.printInfo = info
+        controller.printingItem = image
+
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        if let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first,
+           let root = window.rootViewController {
+            controller.present(
+                from: CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 1, height: 1),
+                in: root.view, animated: true, completionHandler: nil)
+        } else {
+            controller.present(animated: true, completionHandler: nil)
+        }
+    }
+}
+
+/// Static, print-ready keepsake card (no animations, so ImageRenderer captures it fully).
+private struct BadgePrintCard: View {
+    let visitorName: String
+    let archetype: String
+    let compliment: String
+    let discountCode: String
+    let stats: [(label: String, value: String, pct: CGFloat)]
+    let photo: UIImage?
+    let badgeURL: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Wordmark(size: 14, tracking: 3)
+                Spacer()
+                Text("BOOTH BADGE").font(.mono(11)).tracking(2).foregroundColor(.muted)
+            }
+
+            VStack(spacing: 12) {
+                Group {
+                    if let photo {
+                        Image(uiImage: photo).resizable().scaledToFill()
+                    } else {
+                        Spark(mode: .speaking)
+                    }
+                }
+                .frame(width: 150, height: 150)
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(Color.clay, lineWidth: 2))
+
+                Text("YOUR ARCHETYPE").font(.mono(12, weight: 600)).tracking(4).foregroundColor(.clay)
+                Text(archetype).font(.serif(38, weight: 500)).tracking(-1).foregroundColor(.ink)
+                    .multilineTextAlignment(.center)
+                Text(compliment).font(.serif(18, italic: true)).foregroundColor(.muted)
+                    .multilineTextAlignment(.center).lineSpacing(5).frame(maxWidth: 420)
+            }
+            .padding(.vertical, 26)
+
+            VStack(spacing: 12) {
+                ForEach(Array(stats.enumerated()), id: \.offset) { _, s in
+                    VStack(spacing: 6) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(s.label).font(.mono(12)).tracking(1.5).foregroundColor(.muted)
+                            Spacer()
+                            Text(s.value).font(.serif(20, weight: 500)).foregroundColor(.ink)
+                        }
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Rectangle().fill(Color.ink.opacity(0.12))
+                                Rectangle().fill(Color.clay).frame(width: geo.size.width * s.pct)
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                }
+            }
+
+            Spacer(minLength: 24)
+
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ISSUED TO").font(.mono(10)).tracking(2).foregroundColor(.muted)
+                    Text(visitorName).font(.serif(22, weight: 500)).foregroundColor(.ink)
+                    Text(discountCode).font(.mono(18, weight: 600)).tracking(1).foregroundColor(.clay)
+                        .padding(.top, 6)
+                    Text("Flash this code at the booth for the founder rate.")
+                        .font(.mono(10)).foregroundColor(.muted)
+                }
+                Spacer()
+                QRCodeView(string: badgeURL).frame(width: 92, height: 92)
+            }
+        }
+        .padding(40)
+        .frame(width: 612, height: 792)
+        .background(Color.paper)
     }
 }

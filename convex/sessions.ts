@@ -54,12 +54,15 @@ export const badgePublic = query({
       _id: session._id,
       visitorName: session.visitorName,
       company: session.company,
+      visitorPhotoUrl: session.visitorPhotoUrl,
       badge: session.badge,
     };
   },
 });
 
-// GPT tool: set_needs -> writes problems / useCase / urgency onto the card
+// GPT tool: set_needs -> writes problems / useCase / urgency onto the card.
+// confidence/confidenceReasons/bestAngle are optional so the agent can drive a
+// live score meter while it scopes; finalize recomputes the final score at the end.
 export const setNeeds = mutation({
   args: {
     sessionId: v.id("sessions"),
@@ -67,6 +70,9 @@ export const setNeeds = mutation({
     useCase: v.optional(v.string()),
     urgency: v.optional(v.string()),
     urgencyEvidence: v.optional(v.string()),
+    confidence: v.optional(v.number()),
+    confidenceReasons: v.optional(v.array(v.string())),
+    bestAngle: v.optional(v.string()),
   },
   handler: async (ctx, { sessionId, ...rest }) => {
     const patch: Record<string, unknown> = {};

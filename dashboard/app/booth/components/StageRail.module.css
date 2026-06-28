@@ -1,0 +1,86 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ── Dot ─────────────────────────────────────────────────────────────────── */
+.dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 220ms ease, border-color 220ms ease;
+}
+.active .dot {
+  background: var(--clay);
+  border-color: var(--clay);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.18);
+}
+.done .dot {
+  background: var(--clay);
+  border-color: var(--clay);
+}
+.future .dot {
+  border-color: rgba(20, 20, 19, 0.18);
+}
+
+/* ── Label ───────────────────────────────────────────────────────────────── */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 220ms ease;
+}
+.active .label {
+  color: var(--clay);
+}
+.done .label {
+  color: var(--ink);
+  font-weight: 500;
+}
+.future .label {
+  color: rgba(20, 20, 19, 0.32);
+}
+
+/* ── Horizontal connector between steps ──────────────────────────────────── */
+.hairline {
+  width: 26px;
+  height: 1px;
+  background: var(--border);
+  margin: 0 0.7rem;
+  transition: background 300ms ease;
+}
+.hairlineDone {
+  background: var(--clay);
+  opacity: 0.5;
+}
+
+@media (max-width: 720px) {
+  .label {
+    display: none;
+  }
+  .hairline {
+    width: 16px;
+    margin: 0 0.4rem;
+  }
+}

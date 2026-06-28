@@ -33,7 +33,7 @@ struct BoothView: View {
 
     @ViewBuilder private var screen: some View {
         switch director.screen {
-        case .attract: AttractScreen()
+        case .attract: AttractScreen(onStart: { director.tap() })
         case .greeting: GreetingScreen()
         case .qr: QRScreen(live: director.live, camera: director.camera,
                            onScan: { director.captureLinkedIn($0) })
@@ -41,6 +41,7 @@ struct BoothView: View {
         case .badge: BadgeScreen(onRestart: { director.restart() },
                                  live: director.backend.liveSession?.badge,
                                  liveName: director.backend.liveSession?.visitorName,
+                                 photoURL: director.backend.liveSession?.visitorPhotoUrl,
                                  badgeURL: director.badgeURL,
                                  isLive: director.live)
         }

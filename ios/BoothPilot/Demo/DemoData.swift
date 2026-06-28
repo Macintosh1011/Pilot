@@ -99,10 +99,9 @@ final class Director: ObservableObject {
         if live {
             observeLive()
         }
-        // Live opens straight on the QR scanner — no attract/greeting intro. Scripted keeps attract.
-        if !applyLaunchScreen() && live {
-            DispatchQueue.main.async { self.goTo(.qr) }
-        }
+        // Both modes open on the welcome screen. Nothing — camera, session, or voice — starts
+        // until the visitor taps START. (A launch arg can still jump straight to a screen for dev.)
+        applyLaunchScreen()
     }
 
     private func observeLive() {
@@ -114,6 +113,18 @@ final class Director: ObservableObject {
 
         backend.$liveSession.compactMap { $0?.badge }.receive(on: RunLoop.main)
             .sink { [weak self] _ in if self?.screen != .badge { self?.goTo(.badge) } }.store(in: &cancellables)
+
+        // Agent asked for a pose (capture_photo) → snap a front-camera frame and upload it.
+        backend.$liveSession.compactMap { $0?.photoRequestedAt }.removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.snapBoothPhoto() }.store(in: &cancellables)
+    }
+
+    private func snapBoothPhoto() {
+        Task { [weak self] in
+            guard let self, let data = await self.camera.capturePhoto() else { return }
+            await self.backend.uploadPhoto(data)
+        }
     }
 
     /// Dev: `simctl launch … -screen badge [-beat 6]` boots straight into a frozen screen.
@@ -233,32 +244,27 @@ final class Director: ObservableObject {
         }
     }
 
-    /// Live "next visitor" reset (from the badge): tear down the session + voice, re-arm the
-    /// camera, and reopen the QR scanner. Scripted returns to its attract loop.
+    /// Next-visitor reset (from the badge): back to the welcome screen. goTo(.attract) already
+    /// stops the voice and resets the card, so the next START begins a clean session.
     func restart() {
-        if live {
-            voice?.stop()
-            backend.reset()
-            linkedInURL = nil
-            camera.rearm()
-            goTo(.qr)
-        } else {
-            goTo(.attract)
-        }
+        camera.rearm()
+        goTo(.attract)
     }
 
     private func schedule(for s: Screen) {
         if live {
             switch s {
             case .qr:
-                // The live entry point: webcam scanner up, session created, voice asking for the QR.
-                voice?.prepare()
+                // The live entry point (reached only after the START tap): webcam scanner up,
+                // session created, voice asking for the QR. Wait for the mic grant before the call
+                // so it never comes up mic-dead behind a stacked permission dialog.
                 linkedInURL = nil
                 startCameraIfNeeded()
                 camera.rearm()
                 Task { [weak self] in
                     guard let self else { return }
                     if self.backend.sessionId == nil { await self.backend.createSession() }
+                    await self.voice?.ensureMicPermission()
                     self.voice?.start(sessionId: self.backend.sessionId)
                 }
             case .greeting:

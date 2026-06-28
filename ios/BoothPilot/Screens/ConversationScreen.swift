@@ -20,6 +20,25 @@ struct ConversationScreen: View {
         _camera = ObservedObject(wrappedValue: director.camera)
     }
 
+    // The tailored "business site" demo loads in a WebView when the dashboard is deployed to a real
+    // host; otherwise (e.g. localhost) we fall back to the native panel so the booth is never blank.
+    @State private var webDemoFailed = false
+    private var demoURL: URL? {
+        guard let id = director.backend.sessionId else { return nil }
+        return URL(string: "\(BoothConfig.dashboardURL)/demo/\(id)")
+    }
+    private var useWebDemo: Bool {
+        BoothConfig.dashboardIsRemote && demoURL != nil && !webDemoFailed
+    }
+    @ViewBuilder private var demoSurface: some View {
+        if useWebDemo, let url = demoURL {
+            DemoWebView(url: url, onFailure: { webDemoFailed = true })
+        } else {
+            AcmeDemoPanel(stage: director.displayStage, params: director.backend.demoParams)
+                .padding(.horizontal, 38).padding(.vertical, 34)
+        }
+    }
+
     private let labels = ["MEET", "UNDERSTAND", "SHOW", "BADGE"]
 
     var body: some View {
@@ -37,8 +56,7 @@ struct ConversationScreen: View {
             liveRightPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            AcmeDemoPanel(stage: director.displayStage, params: director.backend.demoParams)
-                .padding(.horizontal, 38).padding(.vertical, 34)
+            demoSurface
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -56,9 +74,8 @@ struct ConversationScreen: View {
         let pipPad: CGFloat = 20
 
         return ZStack(alignment: .topLeading) {
-            // Acme demo panel — fades in when the agent starts driving views.
-            AcmeDemoPanel(stage: director.displayStage, params: director.backend.demoParams)
-                .padding(.horizontal, 38).padding(.vertical, 34)
+            // Tailored demo (business-site WebView, or native panel) — fades in once the agent drives views.
+            demoSurface
                 .frame(width: geo.size.width, height: geo.size.height)
                 .opacity(showAcme ? 1 : 0)
 

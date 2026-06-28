@@ -1,0 +1,63 @@
+default_platform(:ios)
+
+KEY_ID = "7P8HVMV882"
+ISSUER = "93b47f0d-b394-47ca-863f-bdb0a0eb65de"
+P8 = File.expand_path("~/.appstoreconnect/private_keys/AuthKey_7P8HVMV882.p8")
+TEAM = "4S3TLKZ4DA"
+BUNDLE = "dev.parkt.boothpilot"
+PROFILE = "BoothPilot AppStore 202606280439"
+
+platform :ios do
+  desc "Print the latest TestFlight build number"
+  lane :latest do
+    key = app_store_connect_api_key(key_id: KEY_ID, issuer_id: ISSUER, key_filepath: P8)
+    n = latest_testflight_build_number(api_key: key, app_identifier: BUNDLE,
+                                       version: "0.1.0", initial_build_number: 0)
+    UI.success("LATEST_TF_BUILD=#{n}")
+  end
+
+  desc "Archive (manual signing) + upload a new build to TestFlight"
+  lane :beta do
+    key = app_store_connect_api_key(key_id: KEY_ID, issuer_id: ISSUER, key_filepath: P8)
+
+    latest = latest_testflight_build_number(api_key: key, app_identifier: BUNDLE,
+                                            version: "0.1.0", initial_build_number: 5)
+    build = latest + 1
+    UI.important("Building build number #{build} (latest on TestFlight was #{latest})")
+
+    build_app(
+      project: "BoothPilot.xcodeproj",
+      scheme: "BoothPilot",
+      configuration: "Release",
+      output_directory: "./build",
+      output_name: "BoothPilot.ipa",
+      clean: true,
+      export_method: "app-store",
+      export_options: {
+        method: "app-store-connect",
+        signingStyle: "manual",
+        signingCertificate: "Apple Distribution",
+        teamID: TEAM,
+        provisioningProfiles: { BUNDLE => PROFILE },
+        uploadSymbols: true,
+        manageAppVersionAndBuildNumber: false,
+      },
+      xcargs: [
+        "CURRENT_PROJECT_VERSION=#{build}",
+        "CODE_SIGN_STYLE=Manual",
+        "DEVELOPMENT_TEAM=#{TEAM}",
+        "CODE_SIGN_IDENTITY='Apple Distribution'",
+        "PROVISIONING_PROFILE_SPECIFIER='#{PROFILE}'",
+      ].join(" "),
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      app_identifier: BUNDLE,
+      ipa: "./build/BoothPilot.ipa",
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+    )
+    UI.success("Uploaded build #{build} to TestFlight — processing on Apple's side now.")
+  end
+end

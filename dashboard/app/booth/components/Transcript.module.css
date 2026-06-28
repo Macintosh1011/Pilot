@@ -1,0 +1,111 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  /* fade the top edge so scrolled-off turns dissolve rather than hard-clip */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%);
+  mask-image: linear-gradient(to bottom, transparent, #000 9%);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  padding: 0.75rem 0;
+  /* Hide scrollbar; scroll remains functional */
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.empty {
+  margin: 0;
+  padding: 2rem 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ── Turn row ────────────────────────────────────────────────────────────── */
+
+.turn {
+  display: grid;
+  gap: 0.3rem;
+  animation: rise 220ms ease both;
+}
+
+/* ── Role eyebrow ────────────────────────────────────────────────────────── */
+
+.roleLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.assistant .roleLabel {
+  color: var(--clay);
+}
+
+/* ── Turn text ───────────────────────────────────────────────────────────── */
+
+.text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 1.2vw, 1.22rem);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Latest assistant turn — full ink; all others muted */
+.assistant.active .text {
+  color: var(--ink);
+}
+
+/* Non-active assistant turns stay muted */
+.assistant:not(.active) .text {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Visitor turns: mono, smaller, clearly different rhythm */
+.visitor .text {
+  font-family: var(--font-mono);
+  font-size: clamp(0.82rem, 0.95vw, 0.95rem);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+/* ── Streaming cursor ────────────────────────────────────────────────────── */
+
+.cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.9em;
+  margin-left: 0.12em;
+  vertical-align: text-bottom;
+  background: var(--clay);
+  border-radius: 1px;
+  animation: transcript-cursor-blink 0.85s step-end infinite;
+}
+
+@keyframes transcript-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}

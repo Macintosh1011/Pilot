@@ -75,6 +75,15 @@
   margin-bottom: 0.25rem;
 }
 
+.heroPhoto {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--clay);
+  margin-bottom: 0.4rem;
+}
+
 .archetypeEyebrow {
   margin: 0.75rem 0 0.6rem;
   text-align: center;

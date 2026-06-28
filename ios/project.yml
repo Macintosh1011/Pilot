@@ -52,7 +52,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Backend wiring (non-secret; overridable per-device via `defaults write dev.parkt.boothpilot <key> …`)
         BoothConvexURL: https://jovial-wildebeest-931.convex.cloud
-        BoothDashboardURL: https://localhost:3000   # point at the DEPLOYED dashboard for an off-device scannable badge QR
+        BoothDashboardURL: https://ychackathon0626.vercel.app   # deployed dashboard: business-site demo (/demo) + off-device badge QR (/badge)
         BoothDeviceId: ipad-1
         UILaunchScreen:
           UIColorName: LaunchBackground

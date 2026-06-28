@@ -86,6 +86,12 @@ struct BoothSession: Decodable {
     let visitorName: String?
     let company: String?
     let badge: BadgeDoc?
+    let visitorPhotoUrl: String?
+    // Agent's capture_photo sets this timestamp; the iPad snaps a pose when it changes.
+    @OptionalConvexFloat var photoRequestedAt: Double?
+    enum CodingKeys: String, CodingKey {
+        case status, visitorName, company, badge, visitorPhotoUrl, photoRequestedAt
+    }
 }
 
 // Action return shapes (INTERFACES §1.5 / §1.10). All fields optional so the decode never
@@ -103,6 +109,8 @@ private enum Fn {
     static let captureContact = "sessions:captureContact" // mutation (GPT capture_contact)
     static let lookupVisitor = "fiber:lookupVisitor"  // action    (GPT lookup_visitor)
     static let finalize = "finalize:finalize"         // action    (GPT finalize_session)
+    static let generateUploadUrl = "photo:generateUploadUrl" // mutation (booth photo upload URL)
+    static let attachPhoto = "photo:attachPhoto"      // mutation  (pin uploaded photo to card)
     static let watchSession = "sessions:get"          // query
     static let watchDemoState = "demoState:bySession" // query
 }
@@ -223,5 +231,22 @@ final class BoothBackend: ObservableObject {
     func finalize() async {
         guard let id = sessionId else { return }
         let _: FinalizeResult? = try? await client.action(Fn.finalize, with: ["sessionId": id])
+    }
+
+    /// Upload a captured booth photo to Convex storage and pin it to the card.
+    func uploadPhoto(_ data: Data) async {
+        guard let id = sessionId else { return }
+        do {
+            let uploadUrl: String = try await client.mutation(Fn.generateUploadUrl)
+            guard let url = URL(string: uploadUrl) else { return }
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+            let (respData, _) = try await URLSession.shared.upload(for: req, from: data)
+            struct UploadResp: Decodable { let storageId: String }
+            let storageId = try JSONDecoder().decode(UploadResp.self, from: respData).storageId
+            let _: String? = try? await client.mutation(
+                Fn.attachPhoto, with: ["sessionId": id, "storageId": storageId])
+        } catch { print("[Convex] uploadPhoto:", error) }
     }
 }

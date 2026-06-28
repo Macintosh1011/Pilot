@@ -1,0 +1,235 @@
+/* ─── Form card ────────────────────────────────────────────────────────────── */
+
+.form {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 2rem;
+  background: var(--card);
+  box-shadow: 0 4px 32px rgba(20, 20, 19, 0.07);
+  animation: rise 260ms ease both;
+}
+
+/* ─── Wordmark row ─────────────────────────────────────────────────────────── */
+
+.formHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Hero ─────────────────────────────────────────────────────────────────── */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.heading {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: var(--ink);
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ─── Fields block ─────────────────────────────────────────────────────────── */
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ─── Label + input ────────────────────────────────────────────────────────── */
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.labelText {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 1rem 1.1rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.4;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  /* Generous touch target on mobile */
+  min-height: 3.25rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--clay);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
+
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* ─── "or" divider ─────────────────────────────────────────────────────────── */
+
+.orDivider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.orLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ─── Error message ────────────────────────────────────────────────────────── */
+
+.errorMsg {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--danger);
+  margin: -0.5rem 0 0;
+  line-height: 1.45;
+}
+
+/* ─── Submit button ────────────────────────────────────────────────────────── */
+
+.submitBtn {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms ease, transform 100ms ease;
+  /* Oversized touch target */
+  min-height: 3.25rem;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--clay);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submitBtn:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 3px;
+}
+
+.submitBtn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* ─── Fine print ───────────────────────────────────────────────────────────── */
+
+.fine {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.65;
+  text-align: center;
+  margin: -0.75rem 0 0;
+  line-height: 1.5;
+}
+
+/* ─── Success state ────────────────────────────────────────────────────────── */
+
+.success {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 2rem;
+  background: var(--card);
+  box-shadow: 0 4px 32px rgba(20, 20, 19, 0.07);
+  animation: rise 260ms ease both;
+}
+
+.successHeading {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1;
+}
+
+.successBody {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}

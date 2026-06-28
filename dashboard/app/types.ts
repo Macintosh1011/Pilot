@@ -65,6 +65,7 @@ export type Session = {
   linkedinUrl?: string;
   email?: string;
   phone?: string;
+  visitorPhotoUrl?: string;
   fiber?: FiberNormalized;
   fiberMatch?: FiberMatch;
   problems?: string[];

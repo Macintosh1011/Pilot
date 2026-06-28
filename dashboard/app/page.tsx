@@ -35,6 +35,12 @@ function statusLabel(session: Session) {
   return session.status ?? "active";
 }
 
+function initials(name?: string) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  const text = parts.slice(0, 2).map((p) => p[0]).join("");
+  return text ? text.toUpperCase() : "•";
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function FiberSection({ session }: { session: Session }) {
@@ -172,15 +178,29 @@ function LeadCard({
       role="button"
       tabIndex={0}
     >
-      {/* Identity — serif name, mono role·company */}
+      {/* Identity — photo, serif name, mono role·company */}
       <div className={styles.cardHeader}>
-        <div className={styles.identityBlock}>
-          <h3 className={styles.visitorName}>
-            {session.visitorName ?? "Unknown visitor"}
-          </h3>
-          <span className={styles.visitorMeta}>
-            {session.role ?? "Role unknown"} · {session.company ?? "Company unknown"}
-          </span>
+        <div className={styles.identityRow}>
+          {session.visitorPhotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className={styles.visitorAvatar}
+              src={session.visitorPhotoUrl}
+              alt={session.visitorName ?? "Visitor"}
+            />
+          ) : (
+            <div className={styles.visitorAvatarFallback} aria-hidden="true">
+              {initials(session.visitorName)}
+            </div>
+          )}
+          <div className={styles.identityBlock}>
+            <h3 className={styles.visitorName}>
+              {session.visitorName ?? "Unknown visitor"}
+            </h3>
+            <span className={styles.visitorMeta}>
+              {session.role ?? "Role unknown"} · {session.company ?? "Company unknown"}
+            </span>
+          </div>
         </div>
         <span className={`status-pill ${status}`}>{status}</span>
       </div>
@@ -203,6 +223,14 @@ function LeadCard({
           )}
         </div>
       </Panel>
+
+      {/* Best angle — internal sales coaching hint */}
+      {session.bestAngle ? (
+        <div className={styles.bestAngleSection}>
+          <span className={styles.sectionLabel}>Best angle</span>
+          <p className={styles.bestAngleText}>{session.bestAngle}</p>
+        </div>
+      ) : null}
 
       {/* Urgency — semantic chip + serif evidence quote */}
       <UrgencyStrip urgency={session.urgency} evidence={session.urgencyEvidence} />

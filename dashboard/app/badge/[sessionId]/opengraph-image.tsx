@@ -23,6 +23,7 @@ type Badge = {
 type Session = {
   visitorName?: string;
   company?: string;
+  visitorPhotoUrl?: string;
   badge?: Badge;
 };
 
@@ -72,8 +73,10 @@ export default async function OpenGraphImage({
   const compliment =
     badge?.compliment ?? "The BoothPilot agent is finishing your collectible.";
   const discountCode = badge?.discountCode ?? "";
+  const visitorPhotoUrl = session?.visitorPhotoUrl;
   const topStat = badge?.stats?.[0];
   const secondStat = badge?.stats?.[1];
+  const thirdStat = badge?.stats?.[2];
 
   // Baseline renders this image on demand. badge.ogImageId is intentionally unused;
   // it is reserved for a later pre-render-to-Convex-storage stretch path.
@@ -158,6 +161,18 @@ export default async function OpenGraphImage({
                 gap: 16,
               }}
             >
+              {/* Visitor photo — circular, only when present */}
+              {visitorPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={visitorPhotoUrl}
+                  width={140}
+                  height={140}
+                  style={{ borderRadius: 9999, objectFit: "cover" }}
+                  alt={visitorName}
+                />
+              ) : null}
+
               {/* Clay eyebrow */}
               <span
                 style={{
@@ -250,7 +265,7 @@ export default async function OpenGraphImage({
                 ) : null}
               </div>
 
-              {/* Stats: up to two */}
+              {/* Stats: all three */}
               <div style={{ display: "flex", gap: 36, alignItems: "flex-end" }}>
                 {topStat ? (
                   <div
@@ -320,6 +335,40 @@ export default async function OpenGraphImage({
                     </span>
                   </div>
                 ) : null}
+                {thirdStat ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "Georgia, serif",
+                        fontSize: 52,
+                        fontWeight: 500,
+                        color: INK,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {Math.round(thirdStat.value)}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "Courier New, monospace",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: "0.1em",
+                        color: MUTED,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {thirdStat.label}
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Discount code */}
@@ -361,7 +410,7 @@ export default async function OpenGraphImage({
                       padding: "5px 14px",
                     }}
                   >
-                    25% OFF PRO
+                    40% OFF PRO
                   </span>
                 </div>
               ) : null}

@@ -100,6 +100,15 @@ final class VapiVoice: ObservableObject {
         AVAudioApplication.requestRecordPermission { _ in }
     }
 
+    /// Await the mic-permission decision so the call never starts before the audio session is
+    /// authorized. Resolves immediately if already decided.
+    func ensureMicPermission() async {
+        guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            AVAudioApplication.requestRecordPermission { _ in cont.resume() }
+        }
+    }
+
     private func subscribe() {
         guard cancellable == nil else { return }
         cancellable = vapi.eventPublisher

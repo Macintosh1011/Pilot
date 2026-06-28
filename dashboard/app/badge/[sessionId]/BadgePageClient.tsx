@@ -15,6 +15,7 @@ type BadgePublicData = {
   _id: Id<"sessions">;
   visitorName?: string;
   company?: string;
+  visitorPhotoUrl?: string;
   badge?: {
     archetype: string;
     tagline: string;
@@ -110,9 +111,18 @@ export default function BadgePageClient({ sessionId }: { sessionId: Id<"sessions
               <span className={styles.badgeNumber}>NO. {num}</span>
             </div>
 
-            {/* Hero: spark → archetype label → archetype name → compliment */}
+            {/* Hero: photo (or spark) → archetype label → archetype name → compliment */}
             <div className={styles.hero}>
-              <Spark size={80} className={styles.spark} />
+              {session.visitorPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={session.visitorPhotoUrl}
+                  alt={visitorName}
+                  className={styles.heroPhoto}
+                />
+              ) : (
+                <Spark size={80} className={styles.spark} />
+              )}
               <p className={`eyebrow ${styles.archetypeEyebrow}`}>Your archetype</p>
               <h1 className={styles.archetype}>{badge.archetype}</h1>
               <p className={styles.compliment}>{badge.compliment}</p>
@@ -162,7 +172,7 @@ export default function BadgePageClient({ sessionId }: { sessionId: Id<"sessions
             <span className={styles.rewardLabel}>Your reward</span>
             <div className={styles.rewardRow}>
               <span className={styles.discountCode}>{badge.discountCode}</span>
-              <span className={styles.offBadge}>25% off pro</span>
+              <span className={styles.offBadge}>40% off pro</span>
             </div>
           </Panel>
 
