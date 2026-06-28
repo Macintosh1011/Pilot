@@ -4,16 +4,25 @@ import SwiftUI
 /// Cream stock, ink + clay, the spark. Reveals in sequence.
 struct BadgeScreen: View {
     var onRestart: () -> Void = {}
-    var onShare: () -> Void = {}
+    var live: BadgeDoc? = nil
+    var liveName: String? = nil
 
-    let visitorName = "Alex Rivera"
-    let archetype = "The Churn Slayer"
-    let compliment = "You spot the leak before the ship even lists — Acme was built for operators like you."
-    let discountCode = "ACME-CHURN40"
+    private var visitorName: String { liveName ?? "Alex Rivera" }
+    private var archetype: String { live?.archetype ?? "The Churn Slayer" }
+    private var compliment: String {
+        live?.compliment ?? "You spot the leak before the ship even lists — Acme was built for operators like you."
+    }
+    private var discountCode: String { live?.discountCode ?? "ACME-CHURN40" }
 
-    private let stats: [(label: String, value: String, pct: CGFloat, delay: Double)] = [
-        ("GROWTH IQ", "94", 0.94, 1.9), ("VISION", "91", 0.91, 2.05), ("VELOCITY", "88", 0.88, 2.2),
-    ]
+    private var stats: [(label: String, value: String, pct: CGFloat, delay: Double)] {
+        let delays = [1.9, 2.05, 2.2]
+        if let s = live?.stats, !s.isEmpty {
+            return s.prefix(3).enumerated().map { i, st in
+                (st.label, "\(Int(st.value.rounded()))", CGFloat(st.value) / 100, delays[min(i, 2)])
+            }
+        }
+        return [("GROWTH IQ", "94", 0.94, 1.9), ("VISION", "91", 0.91, 2.05), ("VELOCITY", "88", 0.88, 2.2)]
+    }
 
     @State private var grow = false
 
@@ -126,7 +135,7 @@ struct BadgeScreen: View {
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.ink.opacity(0.1)))
 
             HStack(spacing: 14) {
-                Button(action: onShare) {
+                ShareLink(item: URL(string: "https://boothpilot.dev/b/\(discountCode)")!) {
                     Text("SHARE BADGE").font(.mono(15, weight: 500)).tracking(1).foregroundColor(.paper)
                         .frame(maxWidth: .infinity).padding(.vertical, 19)
                         .background(Capsule().fill(Color.ink))

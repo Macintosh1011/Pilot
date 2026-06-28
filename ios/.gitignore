@@ -2,6 +2,9 @@
 BoothPilot.xcodeproj/
 BoothPilot/Info.plist
 
+# secrets (copy Secrets.example.plist → Secrets.plist and fill in)
+BoothPilot/Config/Secrets.plist
+
 # Xcode
 build/
 DerivedData/

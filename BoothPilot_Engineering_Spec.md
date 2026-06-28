@@ -35,7 +35,7 @@
 The display surface and the electronics are decoupled and coordinate through Convex. This is what lets the iPad deliver a polished UI **without sacrificing the hardware**.
 
 - **iPad (Xcode / SwiftUI)** = the experience node: conversation UI, voice pipeline, camera (LinkedIn QR scan), the live demo view, and the Booth Badge. Replaces the cheap HDMI panel — better UI, same physical wow.
-- **Raspberry Pi 5** = headless **presence-sensing node**: detects whether a person is at the booth using a **webcam** (person detection), and posts a `presence` event to Convex so the iPad greets. (The Pi's webcam watches the room; the iPad's own camera is kept free for the LinkedIn QR scan.)
+- **Raspberry Pi 5** = on-device **engagement engine (edge AI)**: runs a **local vision model** on the webcam feed — face detection + attention/gaze + expression — to gauge whether a person is present *and how engaged they are*, and posts `engagement` signals to Convex. The iPad uses them to greet on approach and **keep the visitor engaged** (re-hook when attention drifts, wrap up when they leave). All inference is on-device; only anonymous signals leave the Pi. (The iPad's own camera stays free for the LinkedIn QR scan.)
 - **Convex** = the spine both subscribe to. The iPad and the Pi never talk directly (optional local-LAN fallback in §10).
 
 ```
@@ -54,8 +54,8 @@ The display surface and the electronics are decoupled and coordinate through Con
   │ OpenAI Whisper + GPT  │                       ▼           │  + scoring +  │
   │ ElevenLabs TTS        │                ┌──────────────┐   │  badge + email│
   │ fiber.ai (via Convex) │                │ Pi bridge:    │   └──────────────┘
-  └──────────────────────┘                 │ webcam person │
-   (badge = QR on iPad screen)              │ detect → pres │
+  └──────────────────────┘                 │ local model:  │
+   (badge = QR on iPad screen)              │ face+engage   │
                                             └──────────────┘
 ```
 
@@ -74,8 +74,8 @@ The display surface and the electronics are decoupled and coordinate through Con
 | Enrichment/research | **fiber.ai** API / MCP | company + people search, reveal work email/phone, live LinkedIn snapshot; per-call cost metadata (estimate-before-spend) |
 | Backend / realtime | **Convex** | tables, queries, mutations, actions, httpAction, file storage (badge OG images), scheduler |
 | Email | GPT draft → **review queue** → Resend (send only after human approval, post-fair) | no auto-send |
-| Hardware compute | **Raspberry Pi 5** + Pi OS 64-bit | headless presence-sensing node + Python bridge |
-| Bridge libs | `opencv-python` / MediaPipe (webcam person-detect) | presence |
+| Hardware compute | **Raspberry Pi 5** + Pi OS 64-bit | on-device engagement engine (edge AI) |
+| Local vision model | **MediaPipe Face Landmarker** (face + head pose/gaze + expression blendshapes); fallback OpenCV DNN + gaze heuristic; optional **Pi AI Kit / Hailo-8L** accel | runs locally on the Pi, no cloud |
 | Dev | **Cursor** (+ fiber.ai coding plugin) | sponsor; fiber ships an agent plugin + `llms.txt` |
 
 > Latency target for voice: **< 1.5s to first audio.** Stream Whisper partials, stream GPT tokens into ElevenLabs streaming TTS, use VAD for turn-taking, handle barge-in. If turn-taking still feels laggy in testing, OpenAI Realtime API is the drop-in fallback.
@@ -151,8 +151,14 @@ events: defineTable({ sessionId: v.id("sessions"), step: v.string(), label: v.st
 hwCommands: defineTable({ deviceId: v.string(), kind: v.string(), payload: v.any(),
   acked: v.boolean(), createdAt: v.number() }).index("by_device_unacked", ["deviceId","acked"]),
 
-presence: defineTable({ deviceId: v.string(), event: v.string(), // approach | leave
-  personSeen: v.optional(v.boolean()), ts: v.number() })
+engagement: defineTable({ deviceId: v.string(),
+  event: v.string(),                 // approach | update | leave
+  attention: v.optional(v.boolean()),    // gaze on the booth/screen?
+  state: v.optional(v.string()),         // engaged | wavering | disengaged
+  expression: v.optional(v.string()),    // interested | confused | neutral
+  faceCount: v.optional(v.number()),     // solo vs group
+  dwellMs: v.optional(v.number()),
+  ts: v.number() })
   .index("by_device", ["deviceId"]),
 ```
 
@@ -165,7 +171,7 @@ presence: defineTable({ deviceId: v.string(), event: v.string(), // approach | l
 - **Camera:** **LinkedIn QR scan** (Vision `VNDetectBarcodesRequest`) → `linkedinUrl` (feeds fiber enrichment). No person-photo needed in the badge flow.
 - **Badge handoff:** display the Booth Badge QR on screen and/or signal the Pi to print the mini-badge ticket.
 - **Demo view:** WKWebView pointed at the web demo product, reactive to `demoState` via Convex (Swift client or HTTP). Native transitions/chrome around it for polish.
-- **Presence reaction:** subscribe to `presence`; on `approach`, start the greeting.
+- **Engagement reaction:** subscribe to `engagement`; on `approach` start the greeting, and feed `state`/`attention`/`expression` into the conversation so the AI re-hooks a wavering visitor and wraps up on `leave`.
 - **Kiosk hygiene:** Guided Access single-app lock, `isIdleTimerDisabled = true`, stays on charger.
 
 ### 6.2 GPT conversation + tools  *(owner: B defines, A wires)*
@@ -206,9 +212,10 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 |---|---|---|---|
 | 1 | Booth display | **iPad** (team's) | front face; runs the app + all audio + QR camera |
 | 2 | iPad stand | improvised from materials on hand | holds iPad + the webcam aimed at the approach zone |
-| 3 | Compute | **Raspberry Pi 5** + microSD | headless presence-sensing node |
-| 4 | Presence + vision | **USB webcam** | detects a person at the booth (OpenCV/MediaPipe) |
-| 5 | Power | Pi 5 USB-C (5V/5A); iPad charger | webcam draws from USB; nothing else to power |
+| 3 | Compute | **Raspberry Pi 5** + microSD | on-device engagement engine (runs the local model) |
+| 4 | Vision | **USB webcam** | feeds the local face/engagement model |
+| 5 | (Optional) Accelerator | **Raspberry Pi AI Kit (Hailo-8L)** | speeds up local inference — nice flex if available |
+| 6 | Power | Pi 5 USB-C (5V/5A); iPad charger | webcam draws from USB; nothing else to power |
 
 > **What we are NOT using:** no ultrasonic sensor (the webcam handles presence — fewer parts, no GPIO wiring), no LED ring (Pi 5's NeoPixel libs are unreliable anyway — "lead-quality" color is shown **on the iPad screen**), no thermal printer (badge is a **QR on the iPad**), no speaker (audio plays on the **iPad**). The brought USB mic is a backup; the iPad mic is primary.
 
@@ -228,8 +235,8 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 
 ### 7.4 Firmware / bridge (Pi)  *(owner: C)*
 `/firmware/bridge.py` (+ `boothpilot-bridge.service`):
-- **Presence (webcam):** run webcam person-detection (OpenCV/MediaPipe). Fire `approach` when a person is detected in frame; fire `leave` when none for ~5s. Debounce ~3s. Tune detection size/zone so passersby in the aisle don't trigger it.
-- `POST {CONVEX_HTTP}/hw/presence {deviceId, event, personSeen}` (idempotent).
+- **Engagement (local model):** run the local face/engagement model on the webcam. Emit `approach` when a face appears (tune zone so aisle passersby don't trigger), periodic `update`s with `attention`/`state`/`expression`/`faceCount`/`dwellMs`, and `leave` when the face is gone ~5s. All inference on-device; no frames stored or sent.
+- `POST {CONVEX_HTTP}/hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}`.
 - (No `hwCommands` actuators in this build — Pi does not render UI; the iPad is the screen.)
 
 ---

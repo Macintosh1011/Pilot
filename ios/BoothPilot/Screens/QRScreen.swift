@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 4 · LINKEDIN QR — a friendly typed prompt over a tasteful viewfinder with a clay scan frame.
 struct QRScreen: View {
+    var onScan: (String) -> Void = { _ in }
     @State private var scan = false
 
     var body: some View {
@@ -57,20 +58,24 @@ struct QRScreen: View {
             RoundedRectangle(cornerRadius: 20).fill(Color.panel)
             RoundedRectangle(cornerRadius: 20).strokeBorder(Color.ink.opacity(0.1))
 
-            // diagonal hatch
-            Canvas { ctx, size in
-                var x = -size.height
-                while x < size.width {
-                    var p = Path()
-                    p.move(to: CGPoint(x: x, y: 0))
-                    p.addLine(to: CGPoint(x: x + size.height, y: size.height))
-                    ctx.stroke(p, with: .color(Color.ink.opacity(0.03)), lineWidth: 12)
-                    x += 24
+            if QRScanner.isSupported {
+                QRScanner(onCode: onScan)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            } else {
+                // diagonal hatch + faint spark (sim / no-camera fallback)
+                Canvas { ctx, size in
+                    var x = -size.height
+                    while x < size.width {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x + size.height, y: size.height))
+                        ctx.stroke(p, with: .color(Color.ink.opacity(0.03)), lineWidth: 12)
+                        x += 24
+                    }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                Spark(mode: .idle).frame(width: 120, height: 120).opacity(0.4)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-
-            Spark(mode: .idle).frame(width: 120, height: 120).opacity(0.4)
 
             ForEach(0..<4, id: \.self) { i in
                 LBracket()

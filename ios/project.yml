@@ -6,6 +6,11 @@ options:
   developmentLanguage: en
   createIntermediateGroups: true
 
+packages:
+  convex-swift:
+    url: https://github.com/get-convex/convex-swift
+    from: "0.8.1"
+
 settings:
   base:
     MARKETING_VERSION: "0.1.0"
@@ -23,6 +28,9 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: BoothPilot
+    dependencies:
+      - package: convex-swift
+        product: ConvexMobile
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.parkt.boothpilot

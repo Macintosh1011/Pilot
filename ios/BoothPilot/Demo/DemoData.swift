@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 enum Screen { case attract, greeting, conversation, qr, badge }
 
@@ -51,21 +52,70 @@ enum Demo {
     static func visibleCount(stage: Int) -> Int {
         stage <= 0 ? 0 : stage == 1 ? 2 : 4
     }
+
+    /// Maps a live Convex `demoState.view` (set by GPT's `show_view` tool) to how much
+    /// of the Acme panel is revealed. The view vocabulary is agreed between B1 and B2.
+    static func stage(forView view: String?) -> Int {
+        switch view {
+        case "home", "pricing", "integrations": return 1
+        case "churn", "query-result": return 2
+        case "alerts": return 3
+        default: return 0
+        }
+    }
 }
 
-/// Drives the booth through its states. Hands-free auto-run touches all five screens;
-/// a tap anywhere skips forward. Later this is replaced by presence + the voice loop.
+/// Drives the booth through its states. With Convex + an OpenAI key configured it runs
+/// LIVE: presence triggers the greet, the voice loop drives the spark + caption, GPT
+/// tool calls write `demoState`, and the finished badge comes from Convex. With no
+/// secrets it runs the hands-free offline demo (canned beats; tap to skip forward).
 @MainActor
 final class Director: ObservableObject {
     @Published var screen: Screen = .attract
     @Published var beat = 0
     @Published var badgeKey = 1
+    @Published var linkedInURL: String?
 
+    let backend: BoothBackend?
+    let voice: RealtimeVoice?
+    private var cancellables = Set<AnyCancellable>()
     private var transition: DispatchWorkItem?
     private var beatTimer: Timer?
 
+    /// Full live experience needs both the Convex spine and the voice loop.
+    var live: Bool { backend != nil && voice != nil }
+
     init() {
-        // Dev: `simctl launch … -screen badge [-beat 6]` boots straight into a frozen screen.
+        backend = BoothBackend(deviceId: Secrets.deviceId)
+        voice = RealtimeVoice(backend: backend)
+        if live {
+            backend?.startWatchingPresence()
+            observeLive()
+        }
+        applyLaunchScreen()
+    }
+
+    private func observeLive() {
+        guard let backend, let voice else { return }
+        // re-publish nested service changes so the conversation view updates
+        voice.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
+        backend.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
+
+        backend.$presenceEvent.compactMap { $0 }.receive(on: RunLoop.main).sink { [weak self] event in
+            guard let self else { return }
+            if event == "approach", self.screen == .attract { self.goTo(.greeting) }
+            if event == "leave" { self.voice?.stop(); self.goTo(.attract) }
+        }.store(in: &cancellables)
+
+        voice.$finalized.filter { $0 }.receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.goTo(.badge) }.store(in: &cancellables)
+
+        backend.$badge.compactMap { $0 }.receive(on: RunLoop.main)
+            .sink { [weak self] _ in if self?.screen != .badge { self?.goTo(.badge) } }.store(in: &cancellables)
+    }
+
+    /// Dev: `simctl launch … -screen badge [-beat 6]` boots straight into a frozen screen.
+    private func applyLaunchScreen() {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: "-screen"), i + 1 < args.count else { return }
         let map: [String: Screen] = [
@@ -84,7 +134,28 @@ final class Director: ObservableObject {
     var current: Beat { Demo.beats[min(beat, Demo.beats.count - 1)] }
     var lastBeat: Int { Demo.beats.count - 1 }
 
-    var spark: SparkMode {
+    // MARK: - What the screens render (live vs offline)
+
+    var displaySpark: SparkMode {
+        if live, screen == .conversation { return voice?.spark ?? .idle }
+        return spark
+    }
+    var displaySpeaker: String {
+        live && screen == .conversation ? (voice?.speaker ?? "") : current.speaker
+    }
+    var displayCaption: String {
+        live && screen == .conversation ? (voice?.transcript ?? "") : current.line
+    }
+    var displayStage: Int {
+        live && screen == .conversation ? Demo.stage(forView: backend?.demoView) : stage
+    }
+    var displayStep: Int {
+        guard live, screen == .conversation else { return stepIndex }
+        let s = Demo.stage(forView: backend?.demoView)
+        return s == 0 ? 1 : min(s + 1, 3)
+    }
+
+    private var spark: SparkMode {
         switch screen {
         case .conversation: return current.spark
         case .greeting, .badge: return .speaking
@@ -92,19 +163,21 @@ final class Director: ObservableObject {
         case .attract: return .idle
         }
     }
-    var stage: Int { screen == .conversation ? current.stage : 0 }
-    var stepIndex: Int { screen == .conversation ? current.step : 0 }
+    private var stage: Int { screen == .conversation ? current.stage : 0 }
+    private var stepIndex: Int { screen == .conversation ? current.step : 0 }
 
     func goTo(_ s: Screen) {
         cancelAll()
+        if s == .attract || s == .badge { voice?.stop() }
         screen = s
         if s == .conversation { beat = 0 }
         if s == .badge { badgeKey += 1 }
         schedule(for: s)
     }
 
-    /// Tap anywhere — advance the story.
+    /// Tap anywhere — advance the story (offline demo only; live is driven by voice/presence).
     func tap() {
+        guard !live else { return }
         switch screen {
         case .attract: goTo(.greeting)
         case .greeting: goTo(.qr)
@@ -115,12 +188,29 @@ final class Director: ObservableObject {
         }
     }
 
+    /// A scanned LinkedIn QR — enrich straight off the profile (INTERFACES.md §1.5).
+    func captureLinkedIn(_ url: String) {
+        linkedInURL = url
+        if live { Task { await backend?.lookupVisitor(linkedinUrl: url) } }
+        goTo(.conversation)
+    }
+
     private func setBeat(_ i: Int) {
         beat = max(0, min(lastBeat, i))
         restartBeatTimer()
     }
 
     private func schedule(for s: Screen) {
+        if live {
+            switch s {
+            case .greeting:
+                Task { await backend?.createSession() }
+                after(2.5) { self.goTo(.conversation) }
+            case .conversation: voice?.start()
+            default: break // attract waits for presence; badge stays until leave/new approach
+            }
+            return
+        }
         switch s {
         case .greeting: after(6.0) { self.goTo(.qr) }
         case .qr: after(5.5) { self.goTo(.conversation) }

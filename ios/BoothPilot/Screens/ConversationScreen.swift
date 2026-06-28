@@ -10,7 +10,7 @@ struct ConversationScreen: View {
     var body: some View {
         HStack(spacing: 0) {
             leftRail
-            AcmeDemoPanel(stage: director.stage)
+            AcmeDemoPanel(stage: director.displayStage)
                 .padding(.horizontal, 38).padding(.vertical, 34)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -22,16 +22,16 @@ struct ConversationScreen: View {
             Wordmark(size: 15, tracking: 4)
 
             VStack(alignment: .leading, spacing: 30) {
-                Spark(mode: director.spark)
+                Spark(mode: director.displaySpark)
                     .frame(width: 172, height: 172)
                     .padding(.leading, -8)
 
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(director.current.speaker)
+                    Text(director.displaySpeaker)
                         .font(.mono(13, weight: 600)).tracking(3).foregroundColor(.clay)
 
                     TypeText(
-                        text: director.current.line,
+                        text: director.displayCaption,
                         font: .serif(39, weight: 400),
                         speed: 40, keepCursor: true, lineSpacing: 9, tracking: -0.5
                     )
@@ -50,7 +50,7 @@ struct ConversationScreen: View {
     private var stepIndicator: some View {
         HStack(spacing: 12) {
             ForEach(Array(labels.enumerated()), id: \.offset) { i, label in
-                let state = i < director.stepIndex ? 2 : (i == director.stepIndex ? 1 : 0)
+                let state = i < director.displayStep ? 2 : (i == director.displayStep ? 1 : 0)
                 Text(label)
                     .font(.mono(13, weight: state == 1 ? 600 : 500))
                     .tracking(2)
