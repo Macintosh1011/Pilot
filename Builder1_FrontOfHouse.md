@@ -22,12 +22,12 @@
 
 **Architecture — three roles, one nervous system:**
 - **iPad = the experience node (you).** UI, voice in/out, QR camera, the live demo view, the badge.
-- **Pi 5 = headless sensing node (Builder 3).** Ultrasonic/webcam presence → greets.
+- **Pi 5 = headless sensing node (Builder 3).** Webcam presence detection → greets.
 - **Convex = the spine.** Everyone reads/writes Convex; the iPad and Pi never talk directly.
 
 **THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes a Convex doc (`demoState`); your demo view re-renders from it in <100ms. Deterministic, fast, demo-safe.
 
-**Hardware reality (what we actually have):** Pi 5, keyboard/mouse, ultrasonic sensor, webcam, mic, wires, **iPad**. No LED ring, no printer, no speaker, no monitor. → Audio lives on the **iPad** (its mic + speaker). LED-style "lead quality" is shown **on screen**, not a physical LED. Badge is a **QR on screen** (printer optional).
+**Hardware reality (what we actually have):** Pi 5, keyboard/mouse, webcam, mic, wires, **iPad**. No LED ring, no printer, no speaker, no monitor. → Audio lives on the **iPad** (its mic + speaker). LED-style "lead quality" is shown **on screen**, not a physical LED. Badge is a **QR on screen** (printer optional).
 
 **Team map:** B1 (you) = front of house · B2 = brain (Convex/AI/fiber/badge/dashboard) · B3 = physical + integration/reliability lead.
 

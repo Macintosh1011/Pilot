@@ -22,3 +22,5 @@ dashboard/.env.*
 # logs
 *.log
 npm-debug.log*
+# browser-automation scratch
+.playwright-mcp/

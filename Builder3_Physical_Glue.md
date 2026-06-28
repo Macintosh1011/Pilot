@@ -35,7 +35,7 @@
 
 ## Hardware reality — what we actually brought
 
-Pi 5 · keyboard/mouse · **ultrasonic sensor** · **webcam** · mic · wires · (iPad from Builder 1).
+Pi 5 · keyboard/mouse · **webcam** · mic · wires · (iPad from Builder 1). *(We also have an ultrasonic sensor on hand but are NOT using it — the webcam handles presence.)*
 **Not brought:** LED ring, thermal printer, speaker, monitor.
 
 What that means:
@@ -52,8 +52,8 @@ You own **the physical node and making the whole thing not break.**
 
 ### What you own
 - **Pi 5 setup** (headless, on our hotspot, SSH/kbd-mouse for setup).
-- **Presence sensing** → ultrasonic (preferred, if we have resistors) **or** webcam person-detection (zero-wiring fallback).
-- **`bridge.py`** — posts `presence` events to Convex; polls `hwCommands` (for any future actuator).
+- **Presence sensing** → **webcam person-detection**: detect a person in frame → one `presence` signal.
+- **`bridge.py`** — runs webcam detection → posts `presence` events to Convex.
 - **Physical build** — a stand/enclosure for the iPad + Pi from whatever we have (cardboard/foamcore is fine).
 - **Integration owner + demo-reliability lead** — own the hotspot, seed data with B2, the runbook, the pre-demo checklist, and the backup video.
 
@@ -66,7 +66,7 @@ The booth senses someone approaching and greets them, and the full demo runs rel
 
 | You do | Mechanism |
 |---|---|
-| Post "someone approached" | `POST {CONVEX_HTTP}/hw/presence {deviceId, event:"approach"}` (B2 provides the endpoint) |
+| Post "a person is here" | `POST {CONVEX_HTTP}/hw/presence {deviceId, event, personSeen}` (B2 provides the endpoint) |
 | (Future) drive an actuator | poll `GET /hw/poll` → execute → `POST /hw/ack` |
 | Consumer of your presence | Builder 1's iPad subscribes to the `presence` query and greets |
 
@@ -74,25 +74,26 @@ The booth senses someone approaching and greets them, and the full demo runs rel
 
 ---
 
-## Presence sensing — two paths
+## Presence sensing — webcam only
 
-**Path A — Ultrasonic (HC-SR04), the "it sensed me" wow:**
-- TRIG → a Pi GPIO out; ECHO → **through a voltage divider** to a Pi GPIO in.
-- ⚠️ **ECHO is 5V; Pi GPIO is 3.3V. Wire a divider (≈1kΩ + 2kΩ) or you can fry the pin.** Need 2 resistors — check the kit. No resistors → use Path B.
-- Code: `gpiozero.DistanceSensor(echo=…, trigger=…)`; trigger "approach" when distance < ~1m, **debounced ~3s**.
+We detect "a person is at the booth" with the **webcam** — no GPIO, no wiring, no soldering. Plug the USB webcam into the Pi and run person detection.
 
-**Path B — Webcam presence (zero wiring risk):**
-- OpenCV person/face detection (or MediaPipe) on the Pi webcam → "approach" when a person is in frame.
+**Webcam — person detection:**
+- OpenCV (Haar/DNN) or MediaPipe person/face detection on the Pi webcam → `personSeen = true` when a human is in frame.
 - No frames stored, no identity — presence only.
 
-Recommend: try Path A for the cool factor; if resistors are missing or it's flaky by h3, switch to Path B. Don't burn more than ~2h here.
+**Logic (in `bridge.py`):**
+- Fire `approach` when a person is detected, **debounced ~3s**.
+- Fire `leave` when no person for ~5s.
+- Post `{event, personSeen}` so the iPad (and dashboard) know why it fired.
+- **Tune the detection zone/size** so people walking past in the aisle don't trigger it — only someone standing at the booth should count. Don't burn more than ~2h here.
 
 ---
 
 ## Task list
 - [ ] Image Pi 5, put it on **our hotspot** (not venue WiFi), enable SSH.
-- [ ] Wire ultrasonic **with divider** (or set up webcam presence).
-- [ ] `bridge.py`: read sensor → debounce → `POST /hw/presence`. Run as a `systemd` service that waits for network.
+- [ ] Plug in the USB webcam; get OpenCV/MediaPipe person detection running on the Pi.
+- [ ] `bridge.py`: **webcam person-detection** → debounce → `POST /hw/presence`. Run as a `systemd` service that waits for network.
 - [ ] Confirm Builder 1's iPad greets on approach (end-to-end).
 - [ ] Build the physical stand for iPad + Pi + sensor (cable management, sensor aimed at the approach zone).
 - [ ] **Own the hotspot**: get iPad + Pi + dashboard laptop all on it.
@@ -101,7 +102,7 @@ Recommend: try Path A for the cool factor; if resistors are missing or it's flak
 - [ ] Record a **backup video** of a flawless run.
 
 ## Your hour-by-hour
-- **h0–2:** Pi imaged + on hotspot; ultrasonic reading distance (or webcam presence); `presence`→Convex.
+- **h0–2:** Pi imaged + on hotspot; webcam detecting a person → `presence`→Convex.
 - **h2–4:** bridge posts presence; iPad greets. → **★h4 stub demo (with greet)**.
 - **h4–8:** build the stand/enclosure; help Builder 1 with audio reliability.
 - **h8–12:** integration pass; own-hotspot end-to-end test; **start the backup video**. → **★h12**.
@@ -109,7 +110,7 @@ Recommend: try Path A for the cool factor; if resistors are missing or it's flak
 - **h17→judging:** set up booth, pre-warm, dry-run the runbook, charge iPad + Pi.
 
 ## Gotchas (yours)
-- **HC-SR04 ECHO 5V → divider before the Pi GPIO.** This is the one that quietly kills a pin.
+- **Tune webcam detection** for the booth zone (distance/box size) so aisle passersby don't trigger false greetings; watch out for harsh conference lighting/backlight.
 - **Venue WiFi is the #1 demo killer — run everything on our own hotspot.** Pre-join the SSID on the Pi so it auto-reconnects on boot.
 - **Debounce presence** (~3s) so one person doesn't fire 20 greetings.
 - Make `/hw` calls **idempotent** (command ids) so a bridge restart doesn't double-fire.

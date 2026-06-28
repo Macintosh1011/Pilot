@@ -1,0 +1,10 @@
+# xcodegen output — regenerate with `xcodegen generate`
+BoothPilot.xcodeproj/
+BoothPilot/Info.plist
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
