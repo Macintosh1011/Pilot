@@ -1,0 +1,124 @@
+/*
+ * Design tokens + base typography for the web booth.
+ * Palette and fonts are ported from ios/BoothPilot/Theme.swift.
+ * Per-component styling is owned by the component/screen agents.
+ */
+
+:root {
+  /* Editorial palette (Theme.swift) */
+  --paper: #faf9f5;
+  --panel: #f0eee6;
+  --panel2: #f4f2ea;
+  --card: #fcfbf7;
+  --chip: #e7e3d8;
+  --ink: #141413;
+  --muted: #6b6b63;
+  --clay: #cc785c;
+  --tan: #d4a27f;
+  --rust: #b05730;
+
+  /* Fonts — wired to the next/font CSS variables exposed in app/layout.tsx,
+     with system fallbacks so text renders before the web fonts load. */
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Base typography — Newsreader serif, ink on warm paper, like the iOS booth. */
+body {
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Lean utilities (per-component styles belong to other agents) */
+.serif {
+  font-family: var(--font-serif);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.tracking-tight {
+  letter-spacing: -0.01em;
+}
+
+.tracking-wide {
+  letter-spacing: 0.08em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.16em;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+/* Fallback notice shown by ConvexClientProvider when NEXT_PUBLIC_CONVEX_URL is unset. */
+.env-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.env-card {
+  max-width: 32rem;
+  padding: 32px;
+  border-radius: 16px;
+  background: #fcfbf7;
+  border: 1px solid rgba(20, 20, 19, 0.08);
+  box-shadow: 0 12px 40px rgba(20, 20, 19, 0.06);
+}
+
+.env-card .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #6b6b63;
+  margin-bottom: 12px;
+}
+
+.env-card h1 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+
+.env-card p {
+  color: #6b6b63;
+  line-height: 1.5;
+}
+
+.env-card code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f0eee6;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  color: #141413;
+}

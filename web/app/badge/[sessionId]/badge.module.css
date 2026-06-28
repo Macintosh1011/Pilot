@@ -1,0 +1,457 @@
+/*
+ * Public bookplate badge — the editorial collectible from the booth finale,
+ * adapted from ios/BoothPilot/Screens/BadgeScreen.swift for a shareable web page.
+ * Self-contained to this route folder (CSS Module) so it never collides with the
+ * in-booth BadgeScreen owned by another agent. Palette + type read from the
+ * global CSS variables defined in app/globals.css.
+ */
+
+/* Full-viewport, scrollable stage (body has overflow:hidden globally). */
+.page {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 460px) minmax(0, 380px);
+  gap: 58px;
+  align-items: center;
+  width: 100%;
+  max-width: 960px;
+}
+
+@media (max-width: 880px) {
+  .layout {
+    grid-template-columns: minmax(0, 460px);
+    justify-content: center;
+    gap: 40px;
+  }
+}
+
+/* ---- Bookplate card ---------------------------------------------------- */
+
+.bookplate {
+  position: relative;
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid rgba(20, 20, 19, 0.5);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow:
+    0 40px 70px rgba(20, 20, 19, 0.22),
+    0 12px 24px rgba(20, 20, 19, 0.12);
+}
+
+.bookplateInner {
+  display: flex;
+  flex-direction: column;
+  min-height: 600px;
+  padding: 30px 32px;
+  border: 1px solid rgba(20, 20, 19, 0.28);
+  border-radius: 5px;
+}
+
+.plateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plateNo {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.plateCenter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 0;
+}
+
+.spark {
+  width: 116px;
+  height: 116px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--clay);
+  margin-bottom: 14px;
+}
+
+.archetype {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(34px, 5vw, 50px);
+  line-height: 1.04;
+  letter-spacing: -1px;
+  color: var(--ink);
+}
+
+.compliment {
+  max-width: 330px;
+  margin-top: 18px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 22px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.statTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.meterTrack {
+  position: relative;
+  height: 3px;
+  background: rgba(20, 20, 19, 0.12);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  width: var(--pct, 0%);
+  background: var(--clay);
+}
+
+.plateFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 18px;
+  border-top: 1px solid rgba(20, 20, 19, 0.18);
+}
+
+.issuedLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.issuedName {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.qr {
+  flex-shrink: 0;
+}
+
+/* ---- Side panel -------------------------------------------------------- */
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.wrapTitle {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(34px, 4.4vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -1px;
+  color: var(--ink);
+  white-space: pre-line;
+}
+
+.wrapBody {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.reward {
+  padding: 22px 24px;
+  background: var(--panel);
+  border: 1px solid rgba(20, 20, 19, 0.1);
+  border-radius: 14px;
+}
+
+.rewardLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.rewardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rewardCode {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 23px;
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+
+.rewardPill {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--paper);
+  background: var(--clay);
+  border-radius: 999px;
+  padding: 7px 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.shareBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: var(--paper);
+  background: var(--ink);
+  border: none;
+  border-radius: 999px;
+  padding: 18px 16px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.shareBtn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid rgba(20, 20, 19, 0.25);
+  border-radius: 999px;
+  padding: 16px 22px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ghostBtn:hover {
+  background: rgba(20, 20, 19, 0.05);
+}
+
+.poweredBy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: rgba(107, 107, 99, 0.65);
+  text-align: center;
+}
+
+/* ---- Loading / not-found states --------------------------------------- */
+
+.stateCard {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  padding: 48px 40px;
+  background: var(--paper);
+  border: 1px solid rgba(20, 20, 19, 0.5);
+  border-radius: 10px;
+  box-shadow:
+    0 40px 70px rgba(20, 20, 19, 0.18),
+    0 12px 24px rgba(20, 20, 19, 0.1);
+}
+
+.stateEyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--clay);
+  margin-bottom: 18px;
+}
+
+.stateTitle {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+
+.stateBody {
+  margin-top: 16px;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.stateLink {
+  display: inline-block;
+  margin-top: 26px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(20, 20, 19, 0.4);
+  padding-bottom: 3px;
+}
+
+/* The minting spinner — a slow rotating spark while the badge is generated. */
+.minting .spark {
+  animation: spin 3.2s linear infinite;
+}
+
+/* ---- Reveal choreography (mirrors the iOS sequence) -------------------- */
+
+.reveal {
+  opacity: 0;
+  animation: rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.d0 {
+  animation-delay: 0.05s;
+}
+.d1 {
+  animation-delay: 0.18s;
+}
+.d2 {
+  animation-delay: 0.34s;
+}
+.d3 {
+  animation-delay: 0.52s;
+}
+.d4 {
+  animation-delay: 0.7s;
+}
+.d5 {
+  animation-delay: 0.86s;
+}
+
+/* Meters grow after the card has settled. */
+.meterFill {
+  transform-origin: left center;
+  animation: grow 0.9s ease-out 1s forwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes grow {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--pct, 0%);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .meterFill,
+  .minting .spark {
+    animation: none;
+    opacity: 1;
+  }
+  .meterFill {
+    width: var(--pct, 0%);
+  }
+}
