@@ -113,3 +113,25 @@ export const pending = query({
     };
   },
 });
+
+export const bySession = query({
+  args: { sessionId: v.id("sessions"), token: v.optional(v.string()) },
+  handler: async (ctx, { sessionId, token }) => {
+    assertWorkerToken(token);
+    const rows = await ctx.db.query("llmJobs").collect();
+    return rows
+      .filter((job) => job.sessionId === sessionId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((job) => ({
+        jobId: job._id,
+        status: job.status,
+        attempts: job.attempts ?? 0,
+        source: (job.result as any)?.source,
+        result: job.result,
+        error: job.error,
+        createdAt: job.createdAt,
+        claimedAt: job.claimedAt,
+        finishedAt: job.finishedAt,
+      }));
+  },
+});

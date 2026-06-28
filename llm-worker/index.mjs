@@ -28,42 +28,44 @@ process.on("SIGTERM", () => {
 
 console.log(`[llm-worker] connected to ${CONVEX_URL}`);
 
-while (!shuttingDown) {
-  try {
-    const job = await client.mutation(api.llmJobs.claimNext, {
-      token: WORKER_TOKEN || undefined,
-    });
-    if (!job) {
-      await sleep(1_500);
-      continue;
-    }
-
-    console.log(`[llm-worker] claimed ${job.jobId} for session ${job.sessionId}`);
+async function main() {
+  while (!shuttingDown) {
     try {
-      const result = await runCodexFinalize(job.input);
-      await client.mutation(api.llmJobs.complete, {
+      const job = await client.mutation(api.llmJobs.claimNext, {
         token: WORKER_TOKEN || undefined,
-        jobId: job.jobId,
-        result,
       });
-      console.log(`[llm-worker] completed ${job.jobId}`);
+      if (!job) {
+        await sleep(1_500);
+        continue;
+      }
+
+      console.log(`[llm-worker] claimed ${job.jobId} for session ${job.sessionId}`);
+      try {
+        const result = await runCodexFinalize(job.input);
+        await client.mutation(api.llmJobs.complete, {
+          token: WORKER_TOKEN || undefined,
+          jobId: job.jobId,
+          result,
+        });
+        console.log(`[llm-worker] completed ${job.jobId}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await client.mutation(api.llmJobs.fail, {
+          token: WORKER_TOKEN || undefined,
+          jobId: job.jobId,
+          error: message,
+        });
+        console.error(`[llm-worker] failed ${job.jobId}: ${message}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await client.mutation(api.llmJobs.fail, {
-        token: WORKER_TOKEN || undefined,
-        jobId: job.jobId,
-        error: message,
-      });
-      console.error(`[llm-worker] failed ${job.jobId}: ${message}`);
+      console.error(`[llm-worker] loop error: ${message}`);
+      await sleep(1_500);
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[llm-worker] loop error: ${message}`);
-    await sleep(1_500);
   }
-}
 
-console.log("[llm-worker] stopped");
+  console.log("[llm-worker] stopped");
+}
 
 async function runCodexFinalize(input) {
   const thread = codex.startThread({
@@ -71,6 +73,7 @@ async function runCodexFinalize(input) {
     sandboxMode: "read-only",
     approvalPolicy: "never",
     networkAccessEnabled: false,
+    modelReasoningEffort: "low",
   });
   const turn = await thread.run(buildPrompt(input), { outputSchema: FINALIZE_SCHEMA });
   const parsed = parseJsonObject(turn.finalResponse);
@@ -78,7 +81,7 @@ async function runCodexFinalize(input) {
   if (!validated) {
     throw new Error("Codex returned malformed finalize JSON");
   }
-  return validated;
+  return { source: "codex", ...validated };
 }
 
 function buildPrompt(input) {
@@ -118,14 +121,16 @@ function parseJsonObject(text) {
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "");
+
+  const start = stripped.indexOf("{");
+  const end = stripped.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return JSON.parse(stripped.slice(start, end + 1));
+  }
+
   try {
     return JSON.parse(stripped);
   } catch {
-    const start = stripped.indexOf("{");
-    const end = stripped.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(stripped.slice(start, end + 1));
-    }
     throw new Error("No JSON object found in Codex response");
   }
 }
@@ -141,19 +146,38 @@ function validateFinalize(value) {
 
 function validateQualify(value) {
   if (!value || typeof value !== "object" || !value.factors) return null;
+  const rawConfidence = value.confidence;
+  if (
+    typeof rawConfidence !== "number" ||
+    !Number.isFinite(rawConfidence) ||
+    rawConfidence < 0 ||
+    rawConfidence > 100
+  ) {
+    return null;
+  }
+  if (
+    !Array.isArray(value.confidenceReasons) ||
+    value.confidenceReasons.length < 1 ||
+    !value.confidenceReasons.every((reason) => typeof reason === "string")
+  ) {
+    return null;
+  }
+  if (!["low", "medium", "high"].includes(value.urgency)) return null;
+  if (typeof value.urgencyEvidence !== "string") return null;
+  if (typeof value.bestAngle !== "string") return null;
+
   const factors = {
-    icpFit: clampNumber(value.factors.icpFit, 0, 30),
-    intent: clampNumber(value.factors.intent, 0, 25),
-    engagement: clampNumber(value.factors.engagement, 0, 20),
-    authority: clampNumber(value.factors.authority, 0, 15),
-    demoDepth: clampNumber(value.factors.demoDepth, 0, 10),
+    icpFit: validateNumber(value.factors.icpFit, 0, 30),
+    intent: validateNumber(value.factors.intent, 0, 25),
+    engagement: validateNumber(value.factors.engagement, 0, 20),
+    authority: validateNumber(value.factors.authority, 0, 15),
+    demoDepth: validateNumber(value.factors.demoDepth, 0, 10),
   };
+  if (Object.values(factors).some((value) => value === null)) return null;
   const confidence = Math.round(
     factors.icpFit + factors.intent + factors.engagement + factors.authority + factors.demoDepth,
   );
-  const confidenceReasons = Array.isArray(value.confidenceReasons)
-    ? value.confidenceReasons.filter((reason) => typeof reason === "string").slice(0, 4)
-    : [];
+  const confidenceReasons = value.confidenceReasons.slice(0, 4);
   while (confidenceReasons.length < 2) {
     confidenceReasons.push(
       `Confidence ${confidence}/100 from ICP fit, intent, engagement, authority, and demo depth.`,
@@ -163,12 +187,9 @@ function validateQualify(value) {
     factors,
     confidence,
     confidenceReasons,
-    urgency: ["low", "medium", "high"].includes(value.urgency) ? value.urgency : "low",
-    urgencyEvidence: typeof value.urgencyEvidence === "string" ? value.urgencyEvidence : "",
-    bestAngle:
-      typeof value.bestAngle === "string"
-        ? value.bestAngle
-        : "Lead with the visitor's stated problem and the demo view they saw.",
+    urgency: value.urgency,
+    urgencyEvidence: value.urgencyEvidence,
+    bestAngle: value.bestAngle,
   };
 }
 
@@ -184,7 +205,13 @@ function validateBadge(value) {
     return null;
   }
   const stats = value.stats
-    .filter((stat) => stat && typeof stat.label === "string" && typeof stat.value === "number")
+    .filter(
+      (stat) =>
+        stat &&
+        typeof stat.label === "string" &&
+        typeof stat.value === "number" &&
+        Number.isFinite(stat.value),
+    )
     .slice(0, 3)
     .map((stat) => ({
       label: stat.label.slice(0, 48),
@@ -207,9 +234,11 @@ function validateEmailDraft(value) {
   return { subject: value.subject.slice(0, 160), body: value.body };
 }
 
-function clampNumber(value, min, max) {
-  const number = typeof value === "number" && Number.isFinite(value) ? value : min;
-  return Math.min(max, Math.max(min, number));
+function validateNumber(value, min, max) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
+    return null;
+  }
+  return value;
 }
 
 function readRootEnv() {
@@ -313,3 +342,9 @@ const FINALIZE_SCHEMA = {
     },
   },
 };
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[llm-worker] fatal: ${message}`);
+  process.exitCode = 1;
+});

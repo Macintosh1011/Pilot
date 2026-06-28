@@ -54,7 +54,7 @@ export const finalize = action({
       input,
     });
 
-    await ctx.scheduler.runAfter(25_000, internal.finalize.fallbackFinalize, {
+    await ctx.scheduler.runAfter(60_000, internal.finalize.fallbackFinalize, {
       sessionId,
       jobId,
     });
@@ -132,7 +132,9 @@ export async function applyFinalizeJobResult(
 ) {
   const job = await ctx.db.get(jobId);
   if (!job || job.sessionId !== sessionId) return { ok: false, skipped: "missing-job" };
-  if (job.status === "done") return { ok: true, skipped: "already-done" };
+  if (job.status === "done" && source === "fallback") {
+    return { ok: true, skipped: "already-done" };
+  }
 
   const session = await ctx.db.get(sessionId);
   if (!session) {
@@ -154,6 +156,7 @@ export async function applyFinalizeJobResult(
 
   const parsed = validateFinalizeResult(result);
   const usedFallback = source === "fallback" || parsed === null;
+  const resultSource = usedFallback ? "fallback" : "codex";
   const qualify = parsed?.qualify ?? fallbackQualify(session, normalizedTranscript);
   const badge =
     parsed?.badge ?? fallbackBadge(sessionId, session, normalizedTranscript, qualify);
@@ -167,7 +170,7 @@ export async function applyFinalizeJobResult(
     label: `Confidence ${qualify.confidence}`,
     detail: usedFallback
       ? `deterministic fallback${error ? ` · ${error.slice(0, 80)}` : ""}`
-      : `icp ${qualify.factors.icpFit} · intent ${qualify.factors.intent} · eng ${qualify.factors.engagement} · auth ${qualify.factors.authority} · demo ${qualify.factors.demoDepth}`,
+      : `source=codex · icp ${qualify.factors.icpFit} · intent ${qualify.factors.intent} · eng ${qualify.factors.engagement} · auth ${qualify.factors.authority} · demo ${qualify.factors.demoDepth}`,
     ms,
     ts: Date.now(),
   });
@@ -201,9 +204,7 @@ export async function applyFinalizeJobResult(
   });
   await ctx.db.patch(jobId, {
     status: "done",
-    result: usedFallback
-      ? { source: "fallback", qualify, badge, emailDraft }
-      : { source: "codex", ...(result as any) },
+    result: { source: resultSource, qualify, badge, emailDraft },
     ...(error ? { error } : {}),
     finishedAt: Date.now(),
   });
