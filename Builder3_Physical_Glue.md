@@ -22,7 +22,7 @@
 
 **Architecture — three roles, one nervous system:**
 - **iPad = experience node (Builder 1).** UI, voice, QR, demo view, badge.
-- **Pi 5 = headless sensing node (you).** Presence → greets. No screen on the Pi.
+- **Pi 5 = on-device engagement engine (you).** Local face/engagement model → greet + keep the visitor engaged. No screen on the Pi.
 - **Convex = the spine (Builder 2 owns it).** Everyone reads/writes Convex; the iPad and Pi never talk directly.
 
 **THE key design rule:** the demo is **shared state, not browser automation** (`demoState` in Convex). Good to know; not your area.
@@ -35,14 +35,14 @@
 
 ## Hardware reality — what we actually brought
 
-Pi 5 · keyboard/mouse · **webcam** · mic · wires · (iPad from Builder 1). *(We also have an ultrasonic sensor on hand but are NOT using it — the webcam handles presence.)*
+Pi 5 · keyboard/mouse · **webcam** · mic · wires · (iPad from Builder 1). *(We also have an ultrasonic sensor on hand but are NOT using it — the webcam + local model handle face detection & engagement.)*
 **Not brought:** LED ring, thermal printer, speaker, monitor.
 
 What that means:
 - **Audio lives on the iPad** (its mic + speaker). The Pi has **no audio jack** (Pi 5 removed it) and we have no speaker.
 - **"Lead-quality color" is shown on the iPad screen**, not a physical LED. (Also: **Pi 5 broke the old NeoPixel libraries** via the new RP1 chip — don't count on `rpi_ws281x` even if we grab a strip.)
 - **Badge is a QR on screen** — no printer needed.
-- **The Pi's whole job = presence sensing + posting it to Convex.** Small but it's the "physical booth" wow (it senses you and greets you). Because hardware is light, **you're also the integration + reliability lead** (the most important role on demo day).
+- **The Pi's job = run a local face/engagement model on-device and stream engagement signals to Convex.** This is a real **edge-AI node** — the booth's "eyes." It senses presence AND how engaged the visitor is, so the AI can greet them, re-hook them when they drift, and wrap up when they leave. You're **also the integration + reliability lead** (the most important role on demo day).
 
 ---
 
@@ -52,13 +52,13 @@ You own **the physical node and making the whole thing not break.**
 
 ### What you own
 - **Pi 5 setup** (headless, on our hotspot, SSH/kbd-mouse for setup).
-- **Presence sensing** → **webcam person-detection**: detect a person in frame → one `presence` signal.
-- **`bridge.py`** — runs webcam detection → posts `presence` events to Convex.
-- **Physical build** — a stand/enclosure for the iPad + Pi from whatever we have (cardboard/foamcore is fine).
+- **The local engagement model** → a face/engagement model running **on the Pi** (MediaPipe Face Landmarker: face detection + head pose/gaze + expression). Emits presence + attention + engagement state.
+- **`bridge.py`** — runs the model on the webcam feed → posts `engagement` signals to Convex.
+- **Physical build** — a stand/enclosure for the iPad + Pi + webcam from whatever we have (cardboard/foamcore is fine).
 - **Integration owner + demo-reliability lead** — own the hotspot, seed data with B2, the runbook, the pre-demo checklist, and the backup video.
 
 ### Definition of done
-The booth senses someone approaching and greets them, and the full demo runs reliably on our own hotspot with a tested fallback (and a recorded backup video).
+The Pi detects a person and their attention/engagement **on-device** and streams it live; the iPad greets on approach, re-hooks a wavering visitor, and wraps up when they leave — and the full demo runs reliably on our hotspot with a tested fallback (and a recorded backup video).
 
 ---
 
@@ -66,54 +66,58 @@ The booth senses someone approaching and greets them, and the full demo runs rel
 
 | You do | Mechanism |
 |---|---|
-| Post "a person is here" | `POST {CONVEX_HTTP}/hw/presence {deviceId, event, personSeen}` (B2 provides the endpoint) |
-| (Future) drive an actuator | poll `GET /hw/poll` → execute → `POST /hw/ack` |
-| Consumer of your presence | Builder 1's iPad subscribes to the `presence` query and greets |
+| Stream engagement | `POST {CONVEX_HTTP}/hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}` — `event` = approach \| update \| leave (B2 provides the endpoint) |
+| Consumers | Builder 1's iPad subscribes to the `engagement` query (greet/re-hook/wrap); Builder 2 folds it into the confidence score + a dashboard readout |
 
-**Mock while B2 builds the endpoint:** hit a temporary endpoint or write directly to the `presence` table from a script to prove the iPad greets.
+**Mock while B2 builds the endpoint:** write rows directly into the `engagement` table from a script to prove the iPad greets and re-hooks.
 
 ---
 
-## Presence sensing — webcam only
+## The local engagement model (the Pi's brain)
 
-We detect "a person is at the booth" with the **webcam** — no GPIO, no wiring, no soldering. Plug the USB webcam into the Pi and run person detection.
+Run a **local vision model on the Pi** over the webcam feed — no GPIO, no wiring, no cloud. Everything is on-device; no frames are stored or sent, only the derived signals.
 
-**Webcam — person detection:**
-- OpenCV (Haar/DNN) or MediaPipe person/face detection on the Pi webcam → `personSeen = true` when a human is in frame.
-- No frames stored, no identity — presence only.
+**Model:** **MediaPipe Face Landmarker** is the sweet spot on a Pi 5 — one model gives you:
+- **face detection** → presence + `faceCount` (solo vs group),
+- **head pose / gaze** → `attention` (are they looking at the booth/screen?),
+- **expression blendshapes** → `expression` (interested / confused / neutral).
+Fallbacks: OpenCV DNN face detector + a simple gaze heuristic. Optional accelerator: the **Raspberry Pi AI Kit (Hailo-8L)** if you can get one.
+
+**Derive an engagement `state`:** combine attention + expression + dwell into `engaged | wavering | disengaged`.
 
 **Logic (in `bridge.py`):**
-- Fire `approach` when a person is detected, **debounced ~3s**.
-- Fire `leave` when no person for ~5s.
-- Post `{event, personSeen}` so the iPad (and dashboard) know why it fired.
-- **Tune the detection zone/size** so people walking past in the aisle don't trigger it — only someone standing at the booth should count. Don't burn more than ~2h here.
+- `approach` when a face appears (debounced ~3s; tune the zone/face-size so aisle passersby don't trigger it).
+- periodic `update`s (~1–2s) with `attention` / `state` / `expression` / `faceCount` / `dwellMs`.
+- `leave` when the face is gone ~5s.
+- **Build the model first, signals second:** get face-presence → `approach`/`leave` working at h0–2 (that alone powers the greet); layer in gaze/expression/state after. Keep it real-time (~10+ fps); downscale frames if needed.
 
 ---
 
 ## Task list
 - [ ] Image Pi 5, put it on **our hotspot** (not venue WiFi), enable SSH.
-- [ ] Plug in the USB webcam; get OpenCV/MediaPipe person detection running on the Pi.
-- [ ] `bridge.py`: **webcam person-detection** → debounce → `POST /hw/presence`. Run as a `systemd` service that waits for network.
-- [ ] Confirm Builder 1's iPad greets on approach (end-to-end).
-- [ ] Build the physical stand for iPad + Pi + sensor (cable management, sensor aimed at the approach zone).
+- [ ] Plug in the USB webcam; get the **local model (MediaPipe Face Landmarker)** running on the Pi at ~10+ fps.
+- [ ] `bridge.py`: model → derive `approach`/`update`/`leave` + attention/state/expression → debounce → `POST /hw/engagement`. Run as a `systemd` service that waits for network.
+- [ ] Confirm Builder 1's iPad greets on approach AND re-hooks when `state` drops (end-to-end).
+- [ ] Build the physical stand for iPad + Pi + webcam (cable management, webcam aimed at the approach zone).
 - [ ] **Own the hotspot**: get iPad + Pi + dashboard laptop all on it.
 - [ ] With B2: seed 2–3 **golden sessions** for fallback.
 - [ ] Write the **demo runbook** + the pre-demo checklist.
 - [ ] Record a **backup video** of a flawless run.
 
 ## Your hour-by-hour
-- **h0–2:** Pi imaged + on hotspot; webcam detecting a person → `presence`→Convex.
-- **h2–4:** bridge posts presence; iPad greets. → **★h4 stub demo (with greet)**.
-- **h4–8:** build the stand/enclosure; help Builder 1 with audio reliability.
+- **h0–2:** Pi imaged + on hotspot; local model running, face presence → `approach`/`leave` → `engagement`→Convex.
+- **h2–4:** iPad greets on approach. → **★h4 stub demo (with greet)**.
+- **h4–8:** layer in attention/gaze + expression + `state`; tune the zone; build the stand; help B1 with audio reliability.
 - **h8–12:** integration pass; own-hotspot end-to-end test; **start the backup video**. → **★h12**.
 - **h12–17:** reliability hardening, spares, finalize runbook + checklist.
 - **h17→judging:** set up booth, pre-warm, dry-run the runbook, charge iPad + Pi.
 
 ## Gotchas (yours)
-- **Tune webcam detection** for the booth zone (distance/box size) so aisle passersby don't trigger false greetings; watch out for harsh conference lighting/backlight.
-- **Venue WiFi is the #1 demo killer — run everything on our own hotspot.** Pre-join the SSID on the Pi so it auto-reconnects on boot.
-- **Debounce presence** (~3s) so one person doesn't fire 20 greetings.
-- Make `/hw` calls **idempotent** (command ids) so a bridge restart doesn't double-fire.
+- **Tune the model's detection zone** (face size/position) so aisle passersby don't trigger false greetings; watch out for harsh conference lighting/backlight.
+- **Keep it real-time** — downscale frames, cap the model to what runs ~10+ fps on the Pi 5; don't over-reach on expression accuracy.
+- **Venue WiFi is the #1 demo killer — run everything on our own hotspot.** Pre-join the SSID on the Pi so it auto-reconnects on boot. (The model runs on-device, so it works even if the network drops.)
+- **Debounce `approach`** (~3s) and rate-limit `update`s (~1–2s) so you don't flood Convex or fire 20 greetings.
+- **Privacy:** on-device only — no frames stored or sent, just the derived signals. Say this in the pitch; it's a strength.
 - Pi 5: no audio jack, NeoPixel libs unreliable — don't plan around either.
 - Keep your hardware scope small on purpose; your highest-value job is **integration + reliability**, not gadgets.
 

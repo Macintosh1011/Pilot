@@ -22,12 +22,12 @@
 
 **Architecture — three roles, one nervous system:**
 - **iPad = experience node (Builder 1).** UI, voice, QR, demo view, badge.
-- **Pi 5 = headless sensing node (Builder 3).** Presence → greets.
+- **Pi 5 = on-device engagement engine (Builder 3).** Local face/engagement model → `engagement` signals (you fold these into the score + dashboard).
 - **Convex = the spine (you own it).** Everyone reads/writes Convex.
 
 **THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes `demoState`; the iPad's demo view re-renders from it. You define the tools and the state shape.
 
-**Hardware reality:** Pi 5, kbd/mouse, webcam, mic, wires, iPad. No LED/printer/speaker — audio on iPad, "lead quality" shown on screen, badge is a QR; presence is webcam-only. (Doesn't affect you much; you're software.)
+**Hardware reality:** Pi 5, kbd/mouse, webcam, mic, wires, iPad. No LED/printer/speaker — audio on iPad, "lead quality" shown on screen, badge is a QR. The Pi runs a local face/engagement model and streams `engagement` signals you consume. (Mostly software for you.)
 
 **Team map:** B1 = front of house · B2 (you) = brain · B3 = physical + integration/reliability lead.
 
@@ -57,7 +57,7 @@ Identifying a visitor fires live fiber enrichment onto a scored CRM card; finali
 
 You **provide** functions B1 calls + HTTP actions B3 calls.
 
-**Convex tables (lock these):** `sessions` (= the CRM card), `messages`, `demoState`, `events`, `hwCommands`, `presence`. (Full field list in spec §5.)
+**Convex tables (lock these):** `sessions` (= the CRM card), `messages`, `demoState`, `events`, `engagement`. (Full field list in spec §5.)
 
 **Functions you expose to B1 (the GPT tool targets):**
 | Function | Type | Does |
@@ -69,9 +69,9 @@ You **provide** functions B1 calls + HTTP actions B3 calls.
 | `captureContact({email,phone,linkedinUrl})` | mutation | writes card |
 | `finalize(sessionId)` | action | scoring → badge → email draft |
 
-**HTTP actions you expose to B3 (the Pi):** `POST /hw/presence {deviceId, event, personSeen}` (B3 runs webcam person-detection → writes the `presence` table the iPad subscribes to). `GET /hw/poll`, `POST /hw/ack` are reserved but unused in this build (no Pi actuators).
+**HTTP action you expose to B3 (the Pi):** `POST /hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}` (B3's local model writes the `engagement` table the iPad subscribes to and you fold into scoring/dashboard). No other Pi endpoints needed (no actuators).
 
-**Mock while teammates build:** seed dummy `sessions`/`demoState` so B1 can build UI and B3 can post presence before your pipeline is done. Stub fiber with a canned payload until the key works.
+**Mock while teammates build:** seed dummy `sessions`/`demoState` so B1 can build UI and B3 can post `engagement` rows before your pipeline is done. Stub fiber with a canned payload until the key works.
 
 ---
 
@@ -87,7 +87,7 @@ Agent-native B2B data: search companies/people, reveal work email/phone, live Li
 ---
 
 ## Scoring + Badge specs
-- **Confidence (0–100)** via structured output, weighting: ICP/fiber fit 30 · intent language 25 · engagement 20 · authority 15 · demo depth 10. Always return 2–4 plain-English reasons. **Never shown to the visitor.**
+- **Confidence (0–100)** via structured output, weighting: ICP/fiber fit 30 · intent language 25 · engagement 20 (from the Pi's `engagement` signal — attention + dwell) · authority 15 · demo depth 10. Always return 2–4 plain-English reasons. **Never shown to the visitor.**
 - **Urgency** from transcript cues + an evidence quote.
 - **Badge** (structured output): `archetype` + `tagline` + a **grounded compliment that quotes a real detail from the transcript** + 2–3 flattering `stats` (a public mirror of the score) + `discountCode`. Tone: witty, niche, **never saccharine or backhanded**. Render a dynamic **OG image** (satori/`@vercel/og`-style) → Convex file storage.
 
@@ -102,7 +102,7 @@ Agent-native B2B data: search companies/people, reveal work email/phone, live Li
 - [ ] `events` logging at each step (powers the "agent thinking" timeline).
 - [ ] Dashboard: CRM cards sorted by confidence; agent timeline.
 - [ ] **Review queue**: approve/edit/discard; Resend send gated on approval.
-- [ ] HTTP actions `/hw/poll`, `/hw/ack`, `/hw/presence`.
+- [ ] HTTP action `/hw/engagement` (+ write the `engagement` table); surface a live engagement readout on the dashboard.
 - [ ] Seed "golden" sessions for demo fallback.
 
 ## Your hour-by-hour

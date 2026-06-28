@@ -25,8 +25,8 @@
 - [ ] Agent demos the visitor's use case live on screen.
 - [ ] Personalized shareable Booth Badge (archetype + compliment + discount) via QR, with a good Open Graph share image.
 - [ ] Drafted follow-up sitting in a human-review queue on the dashboard.
-- [ ] Physical station: iPad front + Pi-driven LED reaction + proactive greet.
-- [ ] Phone/iPad-only fallback works if the Pi/peripherals fail.
+- [ ] Physical station: iPad front + Pi running the local engagement model on-device, driving the greet + re-hook.
+- [ ] iPad-only fallback works if the Pi fails.
 
 ---
 
@@ -44,8 +44,8 @@ The display surface and the electronics are decoupled and coordinate through Con
   │ Conversation UI       │◄────────────►│ sessions     │◄───────────►│ Review queue +  │
   │ Whisper→GPT→11Labs    │   queries     │ messages     │   queries    │ dashboard       │
   │ Camera: LinkedIn QR    │              │ demoState    │              │ (cards, score,  │
-  │ Demo view (WKWebView   │──tool calls─►│ hwCommands   │              │  email drafts)  │
-  │  reactive to demoState)│              │ presence     │              └────────────────┘
+  │ Demo view (WKWebView   │──tool calls─►│ events       │              │  email drafts)  │
+  │  reactive to demoState)│              │ engagement   │              └────────────────┘
   │ Booth Badge + QR       │              │ badge(file)  │
   └──────────┬─────────────┘              │ (HTTP acts)  │   ┌──────────────┐
              │ ephemeral keys             └──────┬───────┘   │ Agent (Convex │
@@ -148,9 +148,6 @@ demoState: defineTable({ sessionId: v.id("sessions"), view: v.string(), params: 
 events: defineTable({ sessionId: v.id("sessions"), step: v.string(), label: v.string(),
   detail: v.optional(v.string()), ms: v.optional(v.number()), ts: v.number() }).index("by_session", ["sessionId"]),
 
-hwCommands: defineTable({ deviceId: v.string(), kind: v.string(), payload: v.any(),
-  acked: v.boolean(), createdAt: v.number() }).index("by_device_unacked", ["deviceId","acked"]),
-
 engagement: defineTable({ deviceId: v.string(),
   event: v.string(),                 // approach | update | leave
   attention: v.optional(v.boolean()),    // gaze on the booth/screen?
@@ -192,7 +189,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 2. **Urgency** from transcript cues (+ evidence quote).
 3. **Booth Badge** (structured output): assign an `archetype` + `tagline`, write a **grounded compliment** that quotes a real detail from the transcript, derive 2–3 flattering `stats` (a public mirror of the internal score), and a `discountCode`. Tone: witty, niche, never saccharine or backhanded. Render a dynamic **OG image** (`@vercel/og`-style) → Convex file storage (`ogImageId`).
 4. **Email draft** referencing the exact demo they saw and their stated problem → `emailDraft`, `reviewStatus="pending"`.
-5. **Badge handoff** → `hwCommands` to print the QR mini-badge (thermal) and/or signal the iPad to show the QR.
+5. **Badge handoff** → the iPad shows the badge QR on screen (no printer in this build).
 
 ### 6.4b Badge page  *(owner: A or B)*
 `/badge/[sessionId]` — a public, collectible-style card page: archetype, tagline, the grounded compliment, animated stat bars, discount code, and a **Share** action (LinkedIn/X) plus a soft "see what the booth says about your teammates" CTA → creates a `referral`-style attributed visit. The dynamic OG image makes shares render beautifully. **Stretch:** "Add to Apple Wallet" pass.
@@ -217,7 +214,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | 5 | (Optional) Accelerator | **Raspberry Pi AI Kit (Hailo-8L)** | speeds up local inference — nice flex if available |
 | 6 | Power | Pi 5 USB-C (5V/5A); iPad charger | webcam draws from USB; nothing else to power |
 
-> **What we are NOT using:** no ultrasonic sensor (the webcam handles presence — fewer parts, no GPIO wiring), no LED ring (Pi 5's NeoPixel libs are unreliable anyway — "lead-quality" color is shown **on the iPad screen**), no thermal printer (badge is a **QR on the iPad**), no speaker (audio plays on the **iPad**). The brought USB mic is a backup; the iPad mic is primary.
+> **What we are NOT using:** no ultrasonic sensor (the local model on the webcam handles presence + engagement — fewer parts, no GPIO wiring), no LED ring (Pi 5's NeoPixel libs are unreliable anyway — "lead-quality" color is shown **on the iPad screen**), no thermal printer (badge is a **QR on the iPad**), no speaker (audio plays on the **iPad**). The brought USB mic is a backup; the iPad mic is primary.
 
 ### 7.2 Wiring
 
@@ -237,7 +234,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 `/firmware/bridge.py` (+ `boothpilot-bridge.service`):
 - **Engagement (local model):** run the local face/engagement model on the webcam. Emit `approach` when a face appears (tune zone so aisle passersby don't trigger), periodic `update`s with `attention`/`state`/`expression`/`faceCount`/`dwellMs`, and `leave` when the face is gone ~5s. All inference on-device; no frames stored or sent.
 - `POST {CONVEX_HTTP}/hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}`.
-- (No `hwCommands` actuators in this build — Pi does not render UI; the iPad is the screen.)
+- (No actuators in this build — the Pi only senses; it doesn't drive anything physical and renders no UI.)
 
 ---
 
@@ -251,18 +248,17 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | fiber enrichment | B (`enrich` action) | card (B), iPad display (A) | writes `sessions.fiber` |
 | LinkedIn QR | iPad (A) scans | `enrich` (B) | `sessions.linkedinUrl` |
 | Booth Badge | B generates (`sessions.badge` + OG image) | badge page (A/B), iPad QR, Pi print | `sessions.badge` |
-| `hwCommands` + `/hw/poll`,`/ack` | B enqueues | Pi (C) | `{kind,payload}` |
-| `presence` + `/hw/presence` | Pi (C) — webcam person-detect | iPad (A) | `{event, personSeen}` |
+| `engagement` + `/hw/engagement` | Pi (C) — local face/engagement model | iPad (A) + scoring (B) | `{event, attention, state, expression, faceCount, dwellMs}` |
 | email review | B (draft) | dashboard reviewer (B) | `emailDraft`,`reviewStatus` |
 
-**Mocking:** each consumer seeds dummy Convex docs until the producer exists (A hand-writes `demoState` to build the demo view; C inserts an `hwCommands` row to test the LED; B stubs fiber with a canned payload). Shared Convex dev deployment makes this trivial.
+**Mocking:** each consumer seeds dummy Convex docs until the producer exists (A hand-writes `demoState` to build the demo view; C posts a fake `engagement` row to test the greet/re-hook; B stubs fiber with a canned payload). Shared Convex dev deployment makes this trivial.
 
 ---
 
 ## 9. Team split — 3 builders
 
 ### Builder A — iPad Experience & Voice  *(Swift/iOS)*
-**Owns:** SwiftUI booth app · Whisper→GPT→ElevenLabs voice loop (streaming, VAD, barge-in, AEC) · camera (LinkedIn QR scan) · demo-product WKWebView reactive to `demoState` · presence-driven greet · Booth Badge page + share + QR display · Guided Access kiosk.
+**Owns:** SwiftUI booth app · Whisper→GPT→ElevenLabs voice loop (streaming, VAD, barge-in, AEC) · camera (LinkedIn QR scan) · demo-product WKWebView reactive to `demoState` · **engagement-driven behavior** (greet on approach; feed attention/state into the conversation to re-hook; wrap on leave) · Booth Badge page + share + QR display · Guided Access kiosk.
 **DoD:** a visitor talks to the iPad, gets researched, watches their use case demoed live, and walks away with a shareable Booth Badge (QR/printed).
 
 ### Builder B — Agent, Data & Backend
@@ -270,8 +266,8 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 **DoD:** identification triggers live fiber enrichment onto a scored CRM card; a follow-up draft lands in the review queue; dashboard shows it all live.
 
 ### Builder C — Hardware & Integration
-**Owns:** Pi 5 presence-sensing node — **webcam person-detection** → `bridge.py` → `presence` · the physical stand · integration owner + **demo-reliability lead** (own hotspot, pre-seed, runbook, backup video).
-**DoD:** the booth senses a person at the booth (webcam) and the iPad greets; everything runs reliably on our own hotspot with a tested fallback.
+**Owns:** Pi 5 **engagement engine** — local face/engagement model (MediaPipe) on the webcam → `bridge.py` → `engagement` signals · the physical stand · integration owner + **demo-reliability lead** (own hotspot, pre-seed, runbook, backup video).
+**DoD:** the Pi detects a person and their attention/engagement on-device and streams it live; the iPad greets and adapts; everything runs reliably on our own hotspot with a tested fallback.
 
 > **Load-balancing:** hardware has dead-time (prints/glue). When blocked, C is the integration glue (wires `/hw/*` with B, tests kiosk with A, runs reliability). Keep a thin slice each (recap page, seed script) that C can grab.
 
@@ -281,17 +277,17 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 
 | Window | A (iPad/Voice) | B (Agent/Data) | C (Hardware/Integration) |
 |---|---|---|---|
-| **h0–2** | Xcode app skeleton, Convex client, mic capture → Whisper echo | Schema + **contracts locked (§8)**, fiber "hello" call, dashboard skeleton | Flash Pi, **start longest 3D print**, LED blinks from hand-inserted `hwCommands` |
-| **h2–4** | Whisper→GPT→ElevenLabs full loop (text in/out audible) | GPT tool-calling + `lookup_visitor`→fiber writes a card; `/hw/*` HTTP actions | webcam person-detect → `/hw/presence` |
+| **h0–2** | Xcode app skeleton, Convex client, mic capture → Whisper echo | Schema + **contracts locked (§8)**, fiber "hello" call, dashboard skeleton | Flash Pi, webcam + MediaPipe running locally, basic face detection → `/hw/engagement` |
+| **h2–4** | Whisper→GPT→ElevenLabs full loop (text in/out audible) | GPT tool-calling + `lookup_visitor`→fiber writes a card; `/hw/engagement` HTTP action | local face model running on Pi → `engagement` to Convex |
 | **★ h4** | **End-to-end stub: talk → card enriched → demo view reacts. main demoable.** |
-| **h4–8** | LinkedIn QR scan; demo view driven by `demoState`; greet on presence | Confidence/urgency scoring; Booth Badge gen + OG image; email draft → review queue | LED color ← confidence; thermal QR mini-badge prints |
+| **h4–8** | LinkedIn QR scan; demo view driven by `demoState`; engagement-driven greet + re-hook | Confidence/urgency scoring (uses engagement signal); Booth Badge gen + OG image; email draft → review queue | add attention/gaze + expression to the model; tune zone; emit `update` signals |
 | **h8–12** | Polish conversation UI, barge-in, transitions | Review-queue UI (approve/edit); fiber cost caps + caching | Mount iPad in enclosure (or fallback); cabling; 20-cycle burn-in |
 | **★ h12** | **Full loop + physical card + reviewable email. Freeze risky items.** |
 | **h12–16** | Latency tuning (<1.5s), kiosk lock | Structured-output guards, fiber fallbacks | Reliability pass, own-hotspot test, spares |
 | **h16–20** | Rehearse demo | Seed golden sessions + cached fallbacks | Assembly, **backup video**, checklist |
 | **h20–judging** | **Code freeze.** Rehearse 3×, charge iPad+Pi, dry-run runbook, set up + pre-warm. |
 
-**Pre-demo checklist:** iPad in Guided Access on our hotspot · Pi bridge running, test card printed · LED cycles colors · dashboard/review queue live · Whisper/GPT/ElevenLabs + fiber pre-warmed (one throwaway run) · golden sessions loaded · backup video queued · repo public · talk track names Convex/OpenAI/Cursor/**fiber.ai**/ElevenLabs.
+**Pre-demo checklist:** iPad in Guided Access on our hotspot · Pi running the engagement model, a walk-up fires the greet · dashboard/review queue live · Whisper/GPT/ElevenLabs + fiber pre-warmed (one throwaway run) · golden sessions loaded · backup video queued · repo public · talk track names Convex/OpenAI/Cursor/**fiber.ai**/ElevenLabs.
 
 ---
 
@@ -300,11 +296,11 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | Risk | Mitigation |
 |---|---|
 | Voice latency / awkward turns | stream STT+TTS, VAD, barge-in; <1.5s target; Realtime API as fallback |
-| Venue WiFi | own hotspot; iPad + Pi on it; golden-session replay needs no external calls; optional Pi local-LAN HTTP so iPad triggers LED/printer internet-free |
+| Venue WiFi | own hotspot; iPad + Pi on it; golden-session replay needs no external calls; the Pi's engagement model runs fully on-device regardless of network |
 | fiber rate/cost/miss | cache by domain, cap calls/visitor, estimate-before-spend, canned fallback payload |
 | Demo automation flaky | solved by `demoState` shared-state (no browser automation) |
 | Badge feels generic/cringe | compliment must quote a real transcript detail; curate the archetype list; keep tone witty not saccharine |
-| Pi/peripherals die | iPad runs the whole experience minus LED/printer; recorded backup video |
+| Pi dies | iPad runs the whole experience minus the auto-greet/re-hook (tap to start instead); recorded backup video |
 | 3D print overruns | start h0; foamcore/laser-cut fallback |
 | Privacy (data) | no person-photo captured; enrich only public B2B data via fiber; store only what's needed |
 
@@ -312,7 +308,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 
 ## 12. Cut list vs. stretch
 
-**Cut first (in order):** thermal printer (just show the QR on the iPad) → enclosure polish (foamcore) → product-gap panel → extra demo views.
+**Cut first (in order):** expression/gaze analysis (keep basic face presence → still greets) → enclosure polish (foamcore) → product-gap panel → extra demo views.
 **Never cut:** voice conversation · fiber-enriched CRM card · confidence/urgency score · live use-case demo · drafted follow-up in the review queue · iPad-only fallback.
 **Stretch:** fiber MCP wired as a live GPT tool the judges watch fire · confidence updating live mid-conversation · "Add to Apple Wallet" badge pass · CRM/Slack export · a second unit for a "two booths, one dashboard" moment.
 

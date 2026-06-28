@@ -22,7 +22,7 @@
 
 **Architecture — three roles, one nervous system:**
 - **iPad = the experience node (you).** UI, voice in/out, QR camera, the live demo view, the badge.
-- **Pi 5 = headless sensing node (Builder 3).** Webcam presence detection → greets.
+- **Pi 5 = on-device engagement engine (Builder 3).** Local face/engagement model streams `engagement` (approach/attention/state/leave) → you greet + adapt.
 - **Convex = the spine.** Everyone reads/writes Convex; the iPad and Pi never talk directly.
 
 **THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes a Convex doc (`demoState`); your demo view re-renders from it in <100ms. Deterministic, fast, demo-safe.
@@ -31,7 +31,7 @@
 
 **Team map:** B1 (you) = front of house · B2 = brain (Convex/AI/fiber/badge/dashboard) · B3 = physical + integration/reliability lead.
 
-**Checkpoints:** ★**h4** end-to-end stub works · ★**h12** full loop + presence + badge. `main` stays demoable.
+**Checkpoints:** ★**h4** end-to-end stub works · ★**h12** full loop + engagement-driven greet + badge. `main` stays demoable.
 
 ---
 
@@ -66,7 +66,7 @@ You **call Builder 2's Convex functions** when GPT emits a tool call, and you **
 | GPT tool `set_needs` / `capture_contact` | call mutations B2 provides |
 | GPT tool `finalize_session` | call action `finalize(sessionId)` → B2 scores + badge + email draft |
 | Render the demo | **subscribe** to `demoState` query → re-render |
-| Greet on approach | **subscribe** to `presence` query (B3 posts it) |
+| Greet + adapt | **subscribe** to `engagement` query (B3 posts it): greet on `approach`, re-hook when `state` drops, wrap on `leave` |
 | Render badge | read `sessions.badge` (set by B2) |
 
 **Mock while B2 builds:** hand-write a `demoState` doc in the Convex dashboard so you can build the demo view before the agent exists.
@@ -84,7 +84,7 @@ You **call Builder 2's Convex functions** when GPT emits a tool call, and you **
 - [ ] Camera **LinkedIn QR scan** → `linkedinUrl`.
 - [ ] Demo view "Acme Analytics" (home/churn/alerts/pricing/query-result) reactive to `demoState`.
 - [ ] Badge page + Share (LinkedIn/X) + "see your teammates'" CTA.
-- [ ] Greet flow triggered by `presence`.
+- [ ] Greet flow triggered by `engagement` (approach); feed `state`/`attention`/`expression` into the GPT prompt so it re-hooks a wavering visitor and wraps on `leave`.
 - [ ] Stage polish: big readable type, transitions, "lead-quality" color on screen.
 
 ## Your hour-by-hour
