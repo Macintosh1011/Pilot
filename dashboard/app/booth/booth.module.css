@@ -2,12 +2,60 @@
 
 .stage,
 .attract,
-.splash {
+.splash,
+.scanScreen {
   position: fixed;
   inset: 0;
   background: var(--paper);
   color: var(--ink);
   overflow: hidden;
+}
+
+/* ---- scan gate (silent: just the camera until a successful scan) ---- */
+.scanScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+}
+.scanTitle {
+  font-family: var(--font-serif);
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.scanCam {
+  width: min(520px, 80vw);
+}
+.scanHint {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0;
+}
+.skipLink {
+  margin-top: 0.5rem;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 140ms ease;
+}
+.skipLink:hover {
+  opacity: 1;
 }
 
 /* ---- attract / splash ---- */
@@ -130,6 +178,9 @@
   border: 2px solid var(--clay);
   background: var(--ink);
   box-shadow: 0 16px 30px -16px rgba(20, 20, 19, 0.5);
+  transition: width 460ms cubic-bezier(0.4, 0, 0.2, 1),
+    height 460ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 460ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .centerMeet .webcamSlot {
   width: min(440px, 70%);
@@ -186,6 +237,14 @@
   margin: 0;
   line-height: 1.15;
   color: var(--ink);
+}
+.welcomeKnown {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+  color: var(--clay);
+  margin: 0.1rem 0 0.3rem;
 }
 .welcomeSub {
   font-family: var(--font-serif);

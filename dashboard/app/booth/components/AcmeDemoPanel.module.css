@@ -53,6 +53,32 @@
   color: var(--ink);
 }
 
+/* Right side of the header: optional LIVE chip + retention badge */
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.liveChip {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(90, 122, 88, 0.12);
+  border: 1px solid rgba(90, 122, 88, 0.30);
+  color: var(--success);
+  animation: liveChipIn 400ms ease both;
+}
+
+@keyframes liveChipIn {
+  from { opacity: 0; transform: scale(0.80); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
 .retentionBadge {
   display: flex;
   align-items: center;
@@ -85,6 +111,18 @@
 @keyframes viewRise {
   from { opacity: 0; transform: translateY(7px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Staggered entrance animations ─────────────────────────────────────────── */
+
+@keyframes rowRise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
 /* ─── Highlight ring (clay glow) ─────────────────────────────────────────────── */
@@ -250,6 +288,7 @@
   border: 1px solid rgba(20, 20, 19, 0.07);
   border-radius: 0.8125rem;
   margin-bottom: 0.5rem;
+  animation: rowRise 380ms ease both;
 }
 
 .accountAvatar {
@@ -584,6 +623,21 @@
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 0.9375rem;
+  animation: rowRise 380ms ease both;
+}
+
+/* Empty state shown when severity filter yields no matching accounts */
+.alertEmptyState {
+  padding: 1.5rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: var(--panel);
+  border-radius: 0.9375rem;
+  border: 1px dashed var(--border);
 }
 
 .alertDot {
@@ -730,12 +784,20 @@
   flex-direction: column;
   gap: 0.75rem;
   transition: box-shadow 200ms ease;
+  animation: cardRise 400ms ease both;
 }
 
 .planCard.popular {
   background: var(--card);
   border-color: rgba(204, 120, 92, 0.45);
   box-shadow: 0 4px 16px rgba(204, 120, 92, 0.12);
+}
+
+/* Recommended plan highlighted in visitor's matching colour (success green) */
+.planCard.recommended {
+  background: var(--card);
+  border-color: rgba(90, 122, 88, 0.45);
+  box-shadow: 0 4px 16px rgba(90, 122, 88, 0.12);
 }
 
 .popularBadge {
@@ -749,6 +811,30 @@
   padding: 0.2rem 0.5625rem;
   border-radius: 999px;
   width: fit-content;
+}
+
+/* Replaces "Most popular" badge on the tier that matches the visitor's company size */
+.recommendedBadge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--success);
+  padding: 0.2rem 0.5625rem;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+/* Small annotation showing why this tier fits ("Right for ~50-person teams") */
+.recommendedNote {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--success);
+  margin: -0.25rem 0 0;
 }
 
 .planName {
@@ -860,7 +946,34 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.625rem;
-  transition: box-shadow 200ms ease;
+  transition: box-shadow 200ms ease, opacity 200ms ease;
+  animation: cardRise 380ms ease both;
+}
+
+/* Card for an integration detected in the visitor's tech stack */
+.intCard.inStack {
+  border-color: rgba(90, 122, 88, 0.42);
+  background: rgba(90, 122, 88, 0.06);
+}
+
+/* Non-matching cards are dimmed when stack data is present */
+.intCard.dimmed {
+  opacity: 0.40;
+  filter: grayscale(0.35);
+}
+
+/* "Detected in your stack" pill — appears on matched integration cards */
+.stackBadge {
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--success);
+  background: rgba(90, 122, 88, 0.10);
+  border: 1px solid rgba(90, 122, 88, 0.26);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
 }
 
 .intIcon {
@@ -997,6 +1110,11 @@
 
 .resultTable tr:last-child td {
   border-bottom: none;
+}
+
+/* Staggered rise-in on result rows (animation-delay set inline per row) */
+.resultRow {
+  animation: rowRise 380ms ease both;
 }
 
 .resultChartWrap {

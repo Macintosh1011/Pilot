@@ -2,9 +2,9 @@
 
 // AcmeDemoPanel — the live "Acme Analytics" co-presenter rendered in the booth.
 // Pure function of props; the orchestration layer feeds all data.
-// 'use client' required: view transitions re-trigger CSS animations via key change.
+// 'use client' required: count-up hooks, draw-on SVG animation, and scroll effects need browser APIs.
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import s from "./AcmeDemoPanel.module.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +31,16 @@ export type DemoParams = {
   plan?: string;
   provider?: string;
   query?: string;
+  /** Visitor's tech stack — array or comma-separated string, e.g. ["Salesforce","Segment"] */
+  techStack?: string | string[];
+  /** Visitor's headcount — used to recommend the right pricing tier */
+  employeeCount?: string | number;
+  /** Visitor's company name — shown in the LIVE chip */
+  company?: string;
+  /** Visitor's role, e.g. "VP of Customer Success" */
+  role?: string;
+  /** Signal accuracy override; omitted → show product default "6 wks" lead time */
+  accuracy?: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -43,7 +53,6 @@ const DEFAULT_ACCOUNTS: { name: string; mrr: string; signal: string; risk: numbe
 ];
 
 // Default 8-week churn signal points (760 × 150 coordinate space, y=0 is top).
-// Higher y = lower on screen = lower churn value. The line trends upward (worsening churn).
 const DEFAULT_SERIES_PTS: ReadonlyArray<{ x: number; y: number }> = [
   { x: 0,   y: 98 }, { x: 95,  y: 90 }, { x: 190, y: 96 }, { x: 285, y: 74 },
   { x: 380, y: 80 }, { x: 475, y: 58 }, { x: 570, y: 64 }, { x: 665, y: 44 },
@@ -54,6 +63,48 @@ const DEFAULT_SERIES_PTS: ReadonlyArray<{ x: number; y: number }> = [
 const PROJ_PTS: ReadonlyArray<{ x: number; y: number }> = [
   { x: 475, y: 58 }, { x: 570, y: 72 }, { x: 665, y: 92 }, { x: 760, y: 110 },
 ];
+
+const INTEGRATIONS = [
+  { id: "int-salesforce" as const, name: "Salesforce", abbr: "SF", connected: true  },
+  { id: "int-segment"    as const, name: "Segment",    abbr: "SG", connected: true  },
+  { id: "int-snowflake"  as const, name: "Snowflake",  abbr: "SN", connected: false },
+  { id: "int-slack"      as const, name: "Slack",      abbr: "SL", connected: true  },
+  { id: "int-hubspot"    as const, name: "HubSpot",    abbr: "HS", connected: false },
+  { id: "int-intercom"   as const, name: "Intercom",   abbr: "IC", connected: false },
+] as const;
+
+const PLANS = [
+  {
+    id: "plan-starter"    as const,
+    slug: "starter"       as const,
+    name: "Starter",
+    price: "$99",
+    popular: false,
+    maxEmp: 50,
+    features: ["Up to 500 accounts", "7-week churn signal", "Email alerts", "Slack integration"],
+  },
+  {
+    id: "plan-growth"     as const,
+    slug: "growth"        as const,
+    name: "Growth",
+    price: "$299",
+    popular: true,
+    maxEmp: 500,
+    features: ["Up to 2,500 accounts", "Real-time signals", "Smart alert routing", "All integrations", "Priority support"],
+  },
+  {
+    id: "plan-enterprise" as const,
+    slug: "enterprise"    as const,
+    name: "Enterprise",
+    price: "Custom",
+    popular: false,
+    maxEmp: Infinity,
+    features: ["Unlimited accounts", "Custom models", "Dedicated CSM", "SLA guarantee", "On-prem option"],
+  },
+] as const;
+
+// Safe overestimate of any line's total length in the 760×150 viewBox.
+const LINE_LENGTH = 1000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +139,7 @@ function parseSeriesCsv(csv: string | undefined): { x: number; y: number }[] | n
   const hi = Math.max(...vals);
   const span = Math.max(hi - lo, 0.0001);
   const yTop = 16, yBot = 140;
-  // Higher churn → lower y (higher position) to mirror a conventional y-up chart
+  // Higher churn → higher y position (inverted screen coords)
   return vals.map((v, i) => ({
     x: (i / (vals.length - 1)) * 760,
     y: yBot - ((v - lo) / span) * (yBot - yTop),
@@ -106,6 +157,53 @@ function svgAreaPath(pts: ReadonlyArray<{ x: number; y: number }>, bottom: numbe
   return `${svgLinePath(pts)} L${last.x.toFixed(1)},${bottom} L${first.x.toFixed(1)},${bottom} Z`;
 }
 
+// ─── Count-up hook ────────────────────────────────────────────────────────────
+
+type ParsedStat = { prefix: string; value: number; suffix: string; decimals: number };
+
+function parseStatValue(raw: string): ParsedStat | null {
+  const m = raw.match(/^([^0-9]*)([0-9]+(?:\.[0-9]+)?)(.*?)$/);
+  if (!m) return null;
+  const value = parseFloat(m[2]);
+  if (isNaN(value)) return null;
+  const decimals = (m[2].split(".")[1] ?? "").length;
+  return { prefix: m[1], value, suffix: m[3], decimals };
+}
+
+function fmtStat(val: number, p: ParsedStat): string {
+  return `${p.prefix}${val.toFixed(p.decimals)}${p.suffix}`;
+}
+
+function useCountUp(target: string, duration = 570): string {
+  const parsed = parseStatValue(target);
+  const [display, setDisplay] = useState(() =>
+    parsed ? fmtStat(0, parsed) : target
+  );
+
+  useEffect(() => {
+    if (!parsed) { setDisplay(target); return; }
+    const start = performance.now();
+    let frameId: number;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplay(fmtStat(parsed.value * eased, parsed));
+      if (t < 1) frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+    // duration is a compile-time constant — excluding from deps is intentional
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  return display;
+}
+
+function CountUpStat({ value, className }: { value: string; className?: string }) {
+  const display = useCountUp(value);
+  return <span className={className}>{display}</span>;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AcmeDemoPanel({
@@ -121,13 +219,25 @@ export function AcmeDemoPanel({
   // Sanitise useId output for valid SVG NCName usage
   const svgId = "g" + rawId.replace(/[^a-zA-Z0-9]/g, "");
 
-  // Returns the highlight class when this element id is active
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the highlighted element into view within the panel's scroll container.
+  // Uses the data-el attribute to locate the element, same as the hl() ring system.
+  useEffect(() => {
+    if (!highlight || !scrollRef.current) return;
+    const el = scrollRef.current.querySelector(
+      `[data-el="${highlight.replace(/"/g, '\\"')}"]`
+    ) as HTMLElement | null;
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlight]);
+
   const hl = (elId: string) => (highlight === elId ? s.highlighted : "");
+  const liveCompany = params?.company;
 
   return (
     <div className={s.shell}>
-      <PanelHeader />
-      <div key={view} className={s.viewWrap}>
+      <PanelHeader liveCompany={liveCompany} />
+      <div key={view} ref={scrollRef} className={s.viewWrap}>
         {view === "home"         && <HomeView         params={params} hl={hl} />}
         {view === "churn"        && <ChurnView        params={params} hl={hl} svgId={svgId} />}
         {view === "alerts"       && <AlertsView       params={params} hl={hl} svgId={svgId} />}
@@ -141,7 +251,7 @@ export function AcmeDemoPanel({
 
 // ─── Panel Header (always visible) ───────────────────────────────────────────
 
-function PanelHeader() {
+function PanelHeader({ liveCompany }: { liveCompany?: string }) {
   return (
     <header className={s.header} aria-label="Acme Analytics">
       <div className={s.logo}>
@@ -150,9 +260,16 @@ function PanelHeader() {
         </div>
         <span className={s.logoName}>Acme Analytics</span>
       </div>
-      <div className={s.retentionBadge} aria-label="Retention product">
-        <span>RETENTION</span>
-        <span className={s.retentionDot} aria-hidden="true" />
+      <div className={s.headerRight}>
+        {liveCompany && (
+          <span className={s.liveChip} aria-label={`Live demo tailored for ${liveCompany}`}>
+            LIVE · {liveCompany.toUpperCase()}
+          </span>
+        )}
+        <div className={s.retentionBadge} aria-label="Retention product">
+          <span>RETENTION</span>
+          <span className={s.retentionDot} aria-hidden="true" />
+        </div>
       </div>
     </header>
   );
@@ -167,25 +284,35 @@ function HomeView({
   params?: DemoParams;
   hl: (id: string) => string;
 }) {
+  const netMrr    = params?.netMrr    ?? "$148.2k";
+  const churnRate = params?.churnRate ?? "5.8%";
+  const company   = params?.company;
+  const role      = params?.role;
+  const accuracy  = params?.accuracy;
+
   return (
     <div>
       {/* Nav rail */}
       <nav className={s.homeNav} aria-label="Product sections">
-        <button data-el="nav-churn"        className={cx(s.homeNavItem, hl("nav-churn"))}>        Retention </button>
-        <button data-el="nav-alerts"       className={cx(s.homeNavItem, hl("nav-alerts"))}>       Alerts    </button>
-        <button data-el="nav-pricing"      className={cx(s.homeNavItem, hl("nav-pricing"))}>      Pricing   </button>
+        <button data-el="nav-churn"        className={cx(s.homeNavItem, hl("nav-churn"))}>        Retention    </button>
+        <button data-el="nav-alerts"       className={cx(s.homeNavItem, hl("nav-alerts"))}>       Alerts       </button>
+        <button data-el="nav-pricing"      className={cx(s.homeNavItem, hl("nav-pricing"))}>      Pricing      </button>
         <button data-el="nav-integrations" className={cx(s.homeNavItem, hl("nav-integrations"))}> Integrations </button>
       </nav>
 
       {/* Hero */}
       <div data-el="hero" className={cx(s.homeHero, hl("hero"))}>
-        <p className={s.homeEyebrow}>CUSTOMER INTELLIGENCE</p>
+        <p className={s.homeEyebrow}>
+          {company ? `FOR ${company.toUpperCase()}` : "CUSTOMER INTELLIGENCE"}
+        </p>
         <h1 className={s.homeHeadline}>
           Know when customers<br />are about to leave.
         </h1>
         <p className={s.homeSubtext}>
-          Acme Analytics spots churn signals 6 weeks before customers cancel
-          — so your team saves the account before it&rsquo;s too late.
+          {role
+            ? `Built for ${role}s — spots churn signals 6 weeks out so your team saves accounts before they cancel.`
+            : "Acme Analytics spots churn signals 6 weeks before customers cancel — so your team saves the account before it’s too late."
+          }
         </p>
       </div>
 
@@ -203,19 +330,27 @@ function HomeView({
         </button>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats strip — no hardcoded accuracy; derive lead time or use provided accuracy */}
       <div className={s.homeStats} aria-label="Key metrics">
         <div className={s.homeStat}>
-          <strong className={s.homeStatValue}>{params?.netMrr ?? "$148.2k"}</strong>
+          <strong className={s.homeStatValue}>
+            <CountUpStat value={netMrr} />
+          </strong>
           <span className={s.homeStatLabel}>Net MRR protected</span>
         </div>
         <div className={s.homeStat}>
-          <strong className={s.homeStatValue}>{params?.churnRate ?? "5.8%"}</strong>
+          <strong className={s.homeStatValue}>
+            <CountUpStat value={churnRate} />
+          </strong>
           <span className={s.homeStatLabel}>Churn rate tracked</span>
         </div>
         <div className={s.homeStat}>
-          <strong className={s.homeStatValue}>92%</strong>
-          <span className={s.homeStatLabel}>Signal accuracy</span>
+          <strong className={s.homeStatValue}>
+            <CountUpStat value={accuracy ?? "6 wks"} />
+          </strong>
+          <span className={s.homeStatLabel}>
+            {accuracy ? "Signal accuracy" : "Avg. lead time"}
+          </span>
         </div>
       </div>
     </div>
@@ -233,11 +368,12 @@ function ChurnView({
   hl: (id: string) => string;
   svgId: string;
 }) {
-  const headline   = params?.headline   ?? "At-Risk Accounts";
-  const netMrr     = params?.netMrr     ?? "$148.2k";
-  const churnRate  = params?.churnRate  ?? "5.8%";
-  const mrrAtRisk  = params?.mrrAtRisk  ?? "$22.6k";
-  const period     = params?.period     ?? "Last 30 days";
+  const headline  = params?.headline  ?? "At-Risk Accounts";
+  const netMrr    = params?.netMrr    ?? "$148.2k";
+  const churnRate = params?.churnRate ?? "5.8%";
+  const mrrAtRisk = params?.mrrAtRisk ?? "$22.6k";
+  const period    = params?.period    ?? "Last 30 days";
+
   const displayAccounts = (params?.accounts && params.accounts.length > 0)
     ? params.accounts
     : DEFAULT_ACCOUNTS;
@@ -259,38 +395,32 @@ function ChurnView({
         </span>
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — numbers count up on entry */}
       <div className={s.statCards}>
-        {/* Churn rate — always highlighted as the problem */}
-        <div
-          data-el="churn-rate"
-          className={cx(s.statCard, s.churnActive, hl("churn-rate"))}
-        >
+        <div data-el="churn-rate" className={cx(s.statCard, s.churnActive, hl("churn-rate"))}>
           <span className={s.statLabel}>Churn Rate</span>
           <div style={{ display: "flex", alignItems: "baseline" }}>
-            <span className={cx(s.statNumber, s.danger)}>{churnRate}</span>
+            <CountUpStat value={churnRate} className={cx(s.statNumber, s.danger)} />
             <span className={s.statMeta}>↑ 1.4pt</span>
           </div>
         </div>
 
         <div className={s.statCard}>
           <span className={s.statLabel}>Net MRR</span>
-          <span className={s.statNumber}>{netMrr}</span>
+          <CountUpStat value={netMrr} className={s.statNumber} />
         </div>
 
         <div className={s.statCard}>
           <span className={s.statLabel}>MRR at Risk</span>
-          <span className={cx(s.statNumber, hasLiveData ? s.atRisk : undefined)}>
-            {mrrAtRisk}
-          </span>
+          <CountUpStat
+            value={mrrAtRisk}
+            className={cx(s.statNumber, hasLiveData ? s.atRisk : undefined)}
+          />
         </div>
       </div>
 
-      {/* Churn line chart */}
-      <div
-        data-el="cohort-chart"
-        className={cx(s.chartBlock, hl("cohort-chart"))}
-      >
+      {/* Churn line chart — draw-on animation + gridlines */}
+      <div data-el="cohort-chart" className={cx(s.chartBlock, hl("cohort-chart"))}>
         <div className={s.chartHeader}>
           <span className={s.chartLabel}>
             {params?.cohort ? `COHORT · ${params.cohort.toUpperCase()}` : "CHURN SIGNAL · 8 WEEKS"}
@@ -301,7 +431,7 @@ function ChurnView({
         </div>
       </div>
 
-      {/* Toggle row (always on in churn view) */}
+      {/* Toggle row */}
       <div className={s.toggleRow}>
         <span className={s.eyebrow}>FLAGGED THIS WEEK</span>
         <div className={s.toggleGroup}>
@@ -312,18 +442,14 @@ function ChurnView({
         </div>
       </div>
 
-      {/* At-risk accounts */}
-      <div
-        data-el="at-risk-accounts"
-        className={cx(s.accountsSection, hl("at-risk-accounts"))}
-      >
+      {/* At-risk accounts — staggered rise-in */}
+      <div data-el="at-risk-accounts" className={cx(s.accountsSection, hl("at-risk-accounts"))}>
         <p className={s.accountsLabel}>AT-RISK ACCOUNTS</p>
-        {displayAccounts.slice(0, 4).map(a => (
-          <AccountRow key={typeof a.name === "string" ? a.name : String(a.name)} account={a} />
+        {displayAccounts.slice(0, 4).map((a, i) => (
+          <AccountRow key={String(a.name)} account={a} index={i} />
         ))}
       </div>
 
-      {/* Save action */}
       <button
         data-el="save-action"
         className={cx(s.saveAction, hl("save-action"))}
@@ -337,13 +463,15 @@ function ChurnView({
 
 function AccountRow({
   account,
+  index,
 }: {
   account: { name: string; mrr: string; signal: string; risk: string | number };
+  index: number;
 }) {
   const risk = riskNum(account.risk);
   const color = riskColor(risk);
   return (
-    <div className={s.accountRow}>
+    <div className={s.accountRow} style={{ animationDelay: `${index * 70}ms` }}>
       <div className={s.accountAvatar} aria-hidden="true">
         {initials(account.name)}
       </div>
@@ -358,10 +486,7 @@ function AccountRow({
           <span className={s.riskPct} style={{ color }}>{risk}%</span>
         </div>
         <div className={s.riskTrack} role="meter" aria-valuenow={risk} aria-valuemin={0} aria-valuemax={100}>
-          <div
-            className={s.riskBar}
-            style={{ width: `${risk}%`, background: color }}
-          />
+          <div className={s.riskBar} style={{ width: `${risk}%`, background: color }} />
         </div>
       </div>
     </div>
@@ -383,9 +508,16 @@ function AlertsView({
     ? params.accounts
     : DEFAULT_ACCOUNTS;
 
-  const alertAccounts = params?.severity === "high"
-    ? displayAccounts.filter(a => riskNum(a.risk) >= 80)
-    : displayAccounts;
+  const sev = params?.severity?.toLowerCase();
+
+  // Severity filter — was previously broken (returned "HIGH" on both ternary branches).
+  // Now correctly yields HIGH / MED / LOW labels and filters by tier.
+  const alertAccounts = (() => {
+    if (sev === "high")   return displayAccounts.filter(a => riskNum(a.risk) >= 80);
+    if (sev === "medium") return displayAccounts.filter(a => { const r = riskNum(a.risk); return r >= 60 && r < 80; });
+    if (sev === "low")    return displayAccounts.filter(a => riskNum(a.risk) < 60);
+    return displayAccounts;
+  })();
 
   return (
     <div>
@@ -400,7 +532,6 @@ function AlertsView({
         </div>
       </div>
 
-      {/* New alert button */}
       <button
         data-el="new-alert"
         className={cx(s.newAlertBtn, hl("new-alert"))}
@@ -409,41 +540,48 @@ function AlertsView({
         + New alert rule
       </button>
 
-      {/* Alert list */}
       <div
         data-el="alert-list"
         className={cx(s.alertList, hl("alert-list"))}
         role="list"
         aria-label="At-risk account alerts"
       >
-        {alertAccounts.slice(0, 4).map(a => {
-          const risk = riskNum(a.risk);
-          const color = riskColor(risk);
-          const severity = risk >= 88 ? "HIGH" : risk >= 80 ? "HIGH" : "MED";
-          return (
-            <div key={a.name} className={s.alertItem} role="listitem">
+        {alertAccounts.length === 0 ? (
+          // Empty state when filter yields no results — don't render a blank list
+          <div className={s.alertEmptyState} role="status">
+            No {sev ?? ""} severity alerts match the current filter.
+          </div>
+        ) : (
+          alertAccounts.slice(0, 4).map((a, i) => {
+            const risk = riskNum(a.risk);
+            const color = riskColor(risk);
+            // BUG FIX: original ternary returned "HIGH" on both branches (risk >= 88 and risk >= 80).
+            const severity = risk >= 88 ? "HIGH" : risk >= 80 ? "MED" : "LOW";
+            return (
               <div
-                className={s.alertDot}
-                aria-hidden="true"
-                style={{ background: color }}
-              />
-              <div className={s.alertInfo}>
-                <p className={s.alertName}>{a.name}</p>
-                <p className={s.alertSignal}>{a.signal}</p>
-              </div>
-              <span className={s.alertMrr}>{a.mrr}</span>
-              <span
-                className={s.alertSeverity}
-                style={{ color, borderColor: `${color}55`, background: `${color}18` }}
+                key={a.name}
+                className={s.alertItem}
+                role="listitem"
+                style={{ animationDelay: `${i * 70}ms` }}
               >
-                {severity}
-              </span>
-            </div>
-          );
-        })}
+                <div className={s.alertDot} aria-hidden="true" style={{ background: color }} />
+                <div className={s.alertInfo}>
+                  <p className={s.alertName}>{a.name}</p>
+                  <p className={s.alertSignal}>{a.signal}</p>
+                </div>
+                <span className={s.alertMrr}>{a.mrr}</span>
+                <span
+                  className={s.alertSeverity}
+                  style={{ color, borderColor: `${color}55`, background: `${color}18` }}
+                >
+                  {severity}
+                </span>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      {/* Threshold config */}
       <div
         data-el="threshold-config"
         className={cx(s.thresholdPanel, hl("threshold-config"))}
@@ -485,30 +623,6 @@ function NotifyChip({ label, active }: { label: string; active: boolean }) {
 
 // ─── PRICING VIEW ─────────────────────────────────────────────────────────────
 
-const PLANS = [
-  {
-    id: "plan-starter"    as const,
-    name: "Starter",
-    price: "$99",
-    popular: false,
-    features: ["Up to 500 accounts", "7-week churn signal", "Email alerts", "Slack integration"],
-  },
-  {
-    id: "plan-growth"     as const,
-    name: "Growth",
-    price: "$299",
-    popular: true,
-    features: ["Up to 2,500 accounts", "Real-time signals", "Smart alert routing", "All integrations", "Priority support"],
-  },
-  {
-    id: "plan-enterprise" as const,
-    name: "Enterprise",
-    price: "Custom",
-    popular: false,
-    features: ["Unlimited accounts", "Custom models", "Dedicated CSM", "SLA guarantee", "On-prem option"],
-  },
-] as const;
-
 function PricingView({
   params,
   hl,
@@ -516,49 +630,80 @@ function PricingView({
   params?: DemoParams;
   hl: (id: string) => string;
 }) {
+  const recommendedSlug = params?.plan?.toLowerCase();
+
+  const empCount = params?.employeeCount != null
+    ? (typeof params.employeeCount === "number"
+        ? params.employeeCount
+        : parseInt(String(params.employeeCount), 10))
+    : null;
+
+  // Derive tier from headcount when explicit plan is not set
+  const sizePlan = empCount == null || isNaN(empCount) ? null
+    : empCount <= 50  ? "starter"
+    : empCount <= 500 ? "growth"
+    : "enterprise";
+
+  const matchedSlug = recommendedSlug ?? sizePlan;
+  const hasRecommendation = !!(recommendedSlug || (empCount != null && !isNaN(empCount)));
+
   return (
     <div>
       <p className={s.eyebrow}>PRICING</p>
       <h2 className={s.heading}>Simple, transparent pricing.</h2>
 
       <div className={s.pricingGrid}>
-        {PLANS.map(plan => (
-          <div
-            key={plan.id}
-            data-el={plan.id}
-            className={cx(
-              s.planCard,
-              plan.popular ? s.popular : undefined,
-              hl(plan.id),
-            )}
-          >
-            {plan.popular && <span className={s.popularBadge}>Most popular</span>}
-            <p className={s.planName}>{plan.name}</p>
-            <div>
-              <span className={s.planPriceNum}>{plan.price}</span>
-              {plan.price !== "Custom" && (
-                <span className={s.planPricePer}>/mo</span>
-              )}
-            </div>
-            <ul className={s.planFeatures} aria-label={`${plan.name} plan features`}>
-              {plan.features.map(f => (
-                <li key={f} className={s.planFeature}>{f}</li>
-              ))}
-            </ul>
-            <button
+        {PLANS.map((plan, i) => {
+          const isMatch = hasRecommendation && matchedSlug === plan.slug;
+          const sizeNote = isMatch && empCount != null && !isNaN(empCount)
+            ? `Right for ~${empCount}-person teams`
+            : null;
+
+          return (
+            <div
+              key={plan.id}
+              data-el={plan.id}
               className={cx(
-                s.planCta,
-                plan.id === "plan-growth" ? s.ink : undefined,
+                s.planCard,
+                plan.popular ? s.popular : undefined,
+                isMatch ? s.recommended : undefined,
+                hl(plan.id),
               )}
-              aria-label={`Choose ${plan.name} plan`}
+              style={{ animationDelay: `${i * 85}ms` }}
             >
-              {plan.id === "plan-enterprise" ? "Contact sales" : "Get started"}
-            </button>
-          </div>
-        ))}
+              {isMatch && (
+                <span className={s.recommendedBadge}>Recommended for you</span>
+              )}
+              {plan.popular && !isMatch && (
+                <span className={s.popularBadge}>Most popular</span>
+              )}
+              <p className={s.planName}>{plan.name}</p>
+              <div>
+                <span className={s.planPriceNum}>{plan.price}</span>
+                {plan.price !== "Custom" && (
+                  <span className={s.planPricePer}>/mo</span>
+                )}
+              </div>
+              {sizeNote && <p className={s.recommendedNote}>{sizeNote}</p>}
+              <ul className={s.planFeatures} aria-label={`${plan.name} plan features`}>
+                {plan.features.map(f => (
+                  <li key={f} className={s.planFeature}>{f}</li>
+                ))}
+              </ul>
+              <button
+                className={cx(
+                  s.planCta,
+                  plan.id === "plan-growth" || isMatch ? s.ink : undefined,
+                )}
+                aria-label={`Choose ${plan.name} plan`}
+              >
+                {plan.id === "plan-enterprise" ? "Contact sales" : "Get started"}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Contact sales CTA */}
       <div
         data-el="cta-contact-sales"
         className={cx(s.contactSales, hl("cta-contact-sales"))}
@@ -574,14 +719,6 @@ function PricingView({
 
 // ─── INTEGRATIONS VIEW ────────────────────────────────────────────────────────
 
-const INTEGRATIONS = [
-  { id: "int-salesforce" as const, name: "Salesforce", abbr: "SF", connected: true  },
-  { id: "int-segment"    as const, name: "Segment",    abbr: "SG", connected: true  },
-  { id: "int-snowflake"  as const, name: "Snowflake",  abbr: "SN", connected: false },
-  { id: "int-slack"      as const, name: "Slack",      abbr: "SL", connected: true  },
-  { id: "int-hubspot"    as const, name: "HubSpot",    abbr: "HS", connected: false },
-] as const;
-
 function IntegrationsView({
   params,
   hl,
@@ -589,8 +726,31 @@ function IntegrationsView({
   params?: DemoParams;
   hl: (id: string) => string;
 }) {
-  // If a specific provider is highlighted via params, mark it connected
   const activeProvider = params?.provider?.toLowerCase();
+
+  // Parse techStack into a normalised list for matching
+  const stackItems: string[] = (() => {
+    if (!params?.techStack) return [];
+    const raw = Array.isArray(params.techStack)
+      ? params.techStack
+      : params.techStack.split(",").map(t => t.trim()).filter(Boolean);
+    return raw.map(t => t.toLowerCase());
+  })();
+
+  const hasStack = stackItems.length > 0;
+
+  const inStack = (name: string): boolean =>
+    stackItems.some(item =>
+      name.toLowerCase().includes(item) || item.includes(name.toLowerCase())
+    );
+
+  // Stack matches float to the top; original ordering preserved within each group
+  const sorted = [...INTEGRATIONS].sort((a, b) => {
+    const aM = inStack(a.name), bM = inStack(b.name);
+    if (aM && !bM) return -1;
+    if (!aM && bM) return 1;
+    return 0;
+  });
 
   return (
     <div>
@@ -598,18 +758,31 @@ function IntegrationsView({
       <h2 className={s.heading}>Connect your stack in minutes.</h2>
 
       <div className={s.intGrid}>
-        {INTEGRATIONS.map(int => {
+        {sorted.map((int, i) => {
           const connected = int.connected || activeProvider === int.name.toLowerCase();
+          const detected  = hasStack && inStack(int.name);
+          const dimmed    = hasStack && !inStack(int.name);
           return (
             <div
               key={int.id}
               data-el={int.id}
-              className={cx(s.intCard, hl(int.id))}
+              className={cx(
+                s.intCard,
+                detected ? s.inStack : undefined,
+                dimmed   ? s.dimmed  : undefined,
+                hl(int.id),
+              )}
+              style={{ animationDelay: `${i * 60}ms` }}
             >
               <div className={s.intIcon} aria-hidden="true">{int.abbr}</div>
               <p className={s.intName}>{int.name}</p>
-              <span className={cx(s.intStatus, connected ? s.connected : s.available)}>
-                {connected ? "Connected" : "Available"}
+              {detected && (
+                <span className={s.stackBadge} aria-label="Detected in your tech stack">
+                  Detected in your stack
+                </span>
+              )}
+              <span className={cx(s.intStatus, connected || detected ? s.connected : s.available)}>
+                {connected || detected ? "Connected" : "Available"}
               </span>
             </div>
           );
@@ -638,6 +811,7 @@ function QueryResultView({
   params?: DemoParams;
   hl: (id: string) => string;
 }) {
+  // Use the visitor's actual question if provided
   const query = params?.query ?? "Show me accounts at risk of churning this month";
   const displayAccounts = (params?.accounts && params.accounts.length > 0)
     ? params.accounts
@@ -648,7 +822,6 @@ function QueryResultView({
       <p className={s.eyebrow}>QUERY ASSISTANT</p>
       <h2 className={s.heading}>Ask your data anything.</h2>
 
-      {/* Query input */}
       <div
         data-el="query-input"
         className={cx(s.queryInputWrap, hl("query-input"))}
@@ -659,11 +832,7 @@ function QueryResultView({
         <span className={s.queryText}>&ldquo;{query}&rdquo;</span>
       </div>
 
-      {/* Result table */}
-      <div
-        data-el="result-table"
-        className={cx(s.resultTableWrap, hl("result-table"))}
-      >
+      <div data-el="result-table" className={cx(s.resultTableWrap, hl("result-table"))}>
         <table className={s.resultTable} aria-label="Query results">
           <thead>
             <tr>
@@ -677,7 +846,11 @@ function QueryResultView({
             {displayAccounts.slice(0, 4).map((a, i) => {
               const risk = riskNum(a.risk);
               return (
-                <tr key={a.name}>
+                <tr
+                  key={a.name}
+                  className={s.resultRow}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
                   <td>{a.name}</td>
                   <td className={s.mono} style={{ color: riskColor(risk) }}>{risk}%</td>
                   <td className={s.mono}>{a.mrr}</td>
@@ -691,7 +864,6 @@ function QueryResultView({
         </table>
       </div>
 
-      {/* Result chart */}
       <div
         data-el="result-chart"
         className={cx(s.resultChartWrap, hl("result-chart"))}
@@ -709,6 +881,13 @@ function ResultBarChart({
 }: {
   accounts: { name: string; mrr: string; signal: string; risk: string | number }[];
 }) {
+  // Start bars at zero, animate to real widths after mount
+  const [filled, setFilled] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setFilled(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   const barH = 16;
   const gap = 10;
   const rows = accounts.length;
@@ -739,20 +918,24 @@ function ResultBarChart({
               {initials(a.name)}
             </text>
             {/* Track */}
+            <rect x={labelW} y={0} width={trackW} height={barH} rx={4} fill="rgba(20,20,19,0.07)" />
+            {/* Animated fill — width transitions from 0 to target */}
             <rect
-              x={labelW} y={0} width={trackW} height={barH}
-              rx={4} fill="rgba(20,20,19,0.07)"
+              x={labelW} y={0} height={barH} rx={4} fill={color}
+              style={{
+                width: filled ? filledW : 0,
+                transition: `width 500ms cubic-bezier(0.4,0,0.2,1) ${i * 80}ms`,
+              }}
             />
-            {/* Fill */}
-            <rect
-              x={labelW} y={0} width={filledW} height={barH}
-              rx={4} fill={color}
-            />
-            {/* Pct label */}
+            {/* Percent label fades in after bar fills */}
             <text
               x={labelW + trackW + 8} y={barH - 3}
               fontFamily="var(--font-mono)" fontSize={10} fontWeight={700}
               fill={color}
+              style={{
+                opacity: filled ? 1 : 0,
+                transition: `opacity 200ms ease ${i * 80 + 420}ms`,
+              }}
             >
               {risk}%
             </text>
@@ -775,8 +958,23 @@ function ChurnChart({
   svgId: string;
 }) {
   const customPts = parseSeriesCsv(series);
-  const mainPts = customPts ?? DEFAULT_SERIES_PTS;
-  const isCustom = customPts !== null;
+  const mainPts   = customPts ?? DEFAULT_SERIES_PTS;
+  const isCustom  = customPts !== null;
+
+  // Draw-on: start with line invisible (dashoffset = LINE_LENGTH), animate to 0 after mount
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // End-point label — use actual last value if series CSV is available
+  const lastSeriesVal = series
+    ? series.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v)).pop()
+    : null;
+  const endLabel = lastSeriesVal != null ? `${lastSeriesVal.toFixed(1)}%` : "7.3%";
+
+  const lastPt = mainPts[mainPts.length - 1];
 
   const rustGradId = `${svgId}-rust`;
   const clayGradId = `${svgId}-clay`;
@@ -790,35 +988,61 @@ function ChurnChart({
       aria-hidden="true"
     >
       <defs>
-        {/* Gradient from y=0 to y=150 in userSpace — fills the area below each line */}
-        <linearGradient
-          id={rustGradId}
-          x1="0" y1="0" x2="0" y2="150"
-          gradientUnits="userSpaceOnUse"
-        >
+        <linearGradient id={rustGradId} x1="0" y1="0" x2="0" y2="150" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stopColor="var(--rust)" stopOpacity={0.18} />
           <stop offset="100%" stopColor="var(--rust)" stopOpacity={0}    />
         </linearGradient>
-        <linearGradient
-          id={clayGradId}
-          x1="0" y1="0" x2="0" y2="150"
-          gradientUnits="userSpaceOnUse"
-        >
+        <linearGradient id={clayGradId} x1="0" y1="0" x2="0" y2="150" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stopColor="var(--clay)" stopOpacity={0.20} />
           <stop offset="100%" stopColor="var(--clay)" stopOpacity={0}    />
         </linearGradient>
       </defs>
 
+      {/* Faint gridlines — three horizontal bands + baseline */}
+      {([38, 76, 114] as const).map(y => (
+        <line key={y} x1={0} y1={y} x2={760} y2={y}
+          stroke="rgba(20,20,19,0.055)" strokeWidth={1} />
+      ))}
+      <line x1={0} y1={148} x2={760} y2={148}
+        stroke="rgba(20,20,19,0.10)" strokeWidth={1} />
+
       {/* Main area fill */}
       <path d={svgAreaPath(mainPts, 150)} fill={`url(#${rustGradId})`} />
-      {/* Main line */}
+
+      {/* Main line — draw-on via dashoffset transition */}
       <path
         d={svgLinePath(mainPts)}
         fill="none"
         stroke="var(--rust)"
         strokeWidth={2.5}
         strokeLinejoin="round"
+        style={{
+          strokeDasharray: LINE_LENGTH,
+          strokeDashoffset: drawn ? 0 : LINE_LENGTH,
+          transition: "stroke-dashoffset 650ms cubic-bezier(0.4,0,0.2,1)",
+        }}
       />
+
+      {/* End-point dot + value label — fade in after line finishes drawing */}
+      <circle
+        cx={lastPt.x} cy={lastPt.y} r={4.5}
+        fill="var(--rust)"
+        style={{
+          opacity: drawn ? 1 : 0,
+          transition: "opacity 220ms ease 600ms",
+        }}
+      />
+      <text
+        x={lastPt.x - 8} y={lastPt.y - 10}
+        fontFamily="var(--font-mono)" fontSize={10} fontWeight={700}
+        fill="var(--rust)" textAnchor="end"
+        style={{
+          opacity: drawn ? 1 : 0,
+          transition: "opacity 220ms ease 660ms",
+        }}
+      >
+        {endLabel}
+      </text>
 
       {/* Projected branch — only in alerts view with no custom series */}
       {showProjection && !isCustom && (
@@ -832,7 +1056,6 @@ function ChurnChart({
             strokeLinejoin="round"
             strokeDasharray="6 5"
           />
-          {/* Terminal dot on projected end */}
           <circle
             cx={PROJ_PTS[PROJ_PTS.length - 1].x}
             cy={PROJ_PTS[PROJ_PTS.length - 1].y}

@@ -1,7 +1,7 @@
 .footQr,
 .footQrImg {
-  width: 84px;
-  height: 84px;
+  width: 130px;
+  height: 130px;
   flex-shrink: 0;
   display: block;
 }

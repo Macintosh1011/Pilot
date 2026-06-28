@@ -18,11 +18,21 @@ export function Transcript({
   turns: Turn[];
   className?: string;
 }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevTurnCountRef = useRef(0);
 
-  // Scroll to bottom whenever turns change (new turn or partial update)
+  // Smooth-scroll only when a new turn is added; instant-set scrollTop on
+  // partial-token updates so the container stays pinned without jitter.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = scrollRef.current;
+    if (!el) return;
+    const isNewTurn = turns.length > prevTurnCountRef.current;
+    prevTurnCountRef.current = turns.length;
+    if (isNewTurn) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [turns]);
 
   if (turns.length === 0) {
@@ -52,7 +62,7 @@ export function Transcript({
       aria-live="polite"
       aria-label="Conversation transcript"
     >
-      <div className={styles.scroll}>
+      <div ref={scrollRef} className={styles.scroll}>
         {turns.map((turn, i) => {
           const isLatestAssistant =
             turn.role === "assistant" && i === lastAssistantIdx;
@@ -80,8 +90,6 @@ export function Transcript({
             </div>
           );
         })}
-        {/* Anchor for auto-scroll */}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

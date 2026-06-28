@@ -1,5 +1,7 @@
 "use client";
 
+const REWARD_LABEL = "40% off pro";
+
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { Session } from "../types";
@@ -17,14 +19,15 @@ function badgeNumber(id: string): string {
   return String((n % 900) + 100).padStart(3, "0");
 }
 
-// Small, frameless ink-on-transparent QR that tucks into the bookplate footer.
+// QR for the bookplate footer. Solid paper bg + quiet zone (margin:2) so scanners
+// work from arm's length against the textured page background.
 function MiniQR({ url }: { url: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   useEffect(() => {
     QRCode.toDataURL(url, {
-      width: 168,
-      margin: 0,
-      color: { dark: "#141413", light: "#ffffff00" },
+      width: 260,
+      margin: 2,
+      color: { dark: "#141413", light: "#FAF9F5" },
       errorCorrectionLevel: "M",
     })
       .then(setDataUrl)
@@ -116,6 +119,7 @@ export function BoothFinale({
               <br />
               {firstName}.
             </h2>
+            {b?.tagline && <p className={badge.sideSub}>{b.tagline}</p>}
             <p className={badge.sideBody}>
               Your bookplate is ready to share. Flash the code at our booth for the founder rate.
             </p>
@@ -126,7 +130,7 @@ export function BoothFinale({
               <span className={badge.rewardLabel}>Your reward</span>
               <div className={badge.rewardRow}>
                 <span className={badge.discountCode}>{b.discountCode}</span>
-                <span className={badge.offBadge}>40% off pro</span>
+                <span className={badge.offBadge}>{REWARD_LABEL}</span>
               </div>
             </Panel>
           )}

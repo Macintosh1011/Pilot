@@ -77,13 +77,13 @@ export const WebcamCapture = forwardRef<WebcamHandle, Props>(
       const id = window.setInterval(() => {
         const video = videoRef.current;
         if (!active || !video || video.readyState < 2 || !video.videoWidth) return;
-        const w = 480;
+        const w = Math.min(video.videoWidth, 960);
         const h = Math.round((video.videoHeight / video.videoWidth) * w);
         canvas.width = w;
         canvas.height = h;
         cctx.drawImage(video, 0, 0, w, h);
         const image = cctx.getImageData(0, 0, w, h);
-        const code = jsQR(image.data, w, h, { inversionAttempts: "dontInvert" });
+        const code = jsQR(image.data, w, h, { inversionAttempts: "attemptBoth" });
         if (code?.data) onQRRef.current?.(code.data);
       }, 300);
       return () => {

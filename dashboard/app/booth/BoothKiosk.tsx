@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { api } from "@cvx/_generated/api";
 import type { Id } from "@cvx/_generated/dataModel";
 import type { Session } from "../types";
 import { Wordmark } from "../components/Wordmark";
 import { useBoothAgent } from "./useBoothAgent";
-import { summarizeEnrichment } from "./tools";
 import { BoothFinale } from "./BoothFinale";
 import { AcmeDemoPanel, type DemoView, type DemoParams } from "./components/AcmeDemoPanel";
 import { LiveContactCard } from "./components/LiveContactCard";
@@ -22,6 +21,8 @@ export function BoothKiosk() {
   const convex = useConvex();
   const webcamRef = useRef<WebcamHandle>(null);
   const [sessionId, setSessionId] = useState<Id<"sessions"> | null>(null);
+  // "attract" → tap to start → "scanning" (silent QR gate) → agent connects on a successful scan.
+  const [phase, setPhase] = useState<"attract" | "scanning">("attract");
 
   // A fresh CRM card per visitor, created once on mount.
   const createdRef = useRef(false);
@@ -56,74 +57,48 @@ export function BoothKiosk() {
 
   const finalized = !!(session && session.status === "done" && session.badge);
 
-  // Identity is known once enrichment (from a QR scan) or a name has landed on the card.
-  const identified = !!(
-    session?.visitorName ||
-    session?.linkedinUrl ||
-    session?.fiber
-  );
+  // Identity is known once enrichment (from the QR scan) or a name has landed on the card.
+  const identified = !!(session?.visitorName || session?.linkedinUrl || session?.fiber);
 
-  // Scan the visitor's LinkedIn QR off the webcam → enrich → tell the agent who they are.
+  // Tap-to-start: grab camera + mic permission up front (one prompt), then show the scan gate.
+  const beginScan = useCallback(async () => {
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      probe.getTracks().forEach((t) => t.stop());
+    } catch (e) {
+      console.error("[booth permissions]", e);
+    }
+    setPhase("scanning");
+  }, []);
+
+  // A successful LinkedIn QR scan is the only thing that wakes the agent: enrich, then connect
+  // (the agent opens by name). Connect even if enrichment is thin — the scan itself succeeded.
   const qrHandledRef = useRef(false);
   const onQR = useCallback(
     async (value: string) => {
       if (qrHandledRef.current || !sessionId) return;
-      if (!/linkedin\.com\/(in|pub)\//i.test(value)) return; // only LinkedIn profile QRs
+      if (!/linkedin\.com\/(in|pub|profile)/i.test(value)) return; // LinkedIn profile QRs
       qrHandledRef.current = true;
       try {
-        await convex.action(api.fiber.lookupVisitor, {
-          sessionId,
-          linkedinUrl: value,
-          reveal: false,
-        });
-        const s = (await convex.query(api.sessions.get, { sessionId })) as Session | null;
-        const real = !!(s?.fiber && s.fiber.source !== "fallback" && s.fiber.person?.fullName);
-        agent.sendContext(
-          real
-            ? `(The visitor just held up their LinkedIn QR and it scanned. ${summarizeEnrichment(s)} Greet them by name now.)`
-            : `(The visitor showed a LinkedIn QR but I couldn't pull reliable info on them. Warmly ask them to tell you their name and company — do NOT guess.)`,
-        );
+        await convex.action(api.fiber.lookupVisitor, { sessionId, linkedinUrl: value, reveal: false });
       } catch (e) {
-        console.error("[booth qr]", e);
-        qrHandledRef.current = false;
+        console.error("[booth qr enrich]", e);
       }
+      void agent.connect();
     },
     [convex, sessionId, agent],
   );
+
+  // Escape hatch for someone without a QR — connect without identity (agent asks their name).
+  const startWithoutScan = useCallback(() => {
+    qrHandledRef.current = true;
+    void agent.connect();
+  }, [agent]);
 
   const restart = useCallback(() => {
     agent.stop();
     if (typeof window !== "undefined") window.location.reload();
   }, [agent]);
-
-  // ---- Attract / pre-conversation states ----
-  if (!finalized && (agent.status === "idle" || agent.status === "ended")) {
-    return <Attract status={agent.status} onStart={agent.connect} ready={!!sessionId} />;
-  }
-  if (!finalized && agent.status === "connecting") {
-    return <Splash title="Connecting…" sub="Warming up the mic and the voice." />;
-  }
-  if (!finalized && agent.status === "no-mic") {
-    return (
-      <Splash
-        title="Microphone needed"
-        sub="Allow microphone access in your browser, then tap to try again."
-        onRetry={agent.connect}
-      />
-    );
-  }
-  if (!finalized && agent.status === "no-key") {
-    return (
-      <Splash
-        title="Voice is offline"
-        sub="No OpenAI key is set — add OPENAI_API_KEY to Convex to enable the live agent."
-        onRetry={agent.connect}
-      />
-    );
-  }
-  if (!finalized && agent.status === "error") {
-    return <Splash title="Something hiccuped" sub={agent.error ?? "Tap to retry."} onRetry={agent.connect} />;
-  }
 
   // ---- Badge finale ----
   if (finalized && session) {
@@ -135,6 +110,40 @@ export function BoothKiosk() {
         onRestart={restart}
       />
     );
+  }
+
+  // ---- Pre-conversation: connecting / errors / scan gate / attract ----
+  if (agent.status === "connecting") {
+    return <Splash title="One sec…" sub="Bringing your host in." />;
+  }
+  if (agent.status === "no-mic") {
+    return (
+      <Splash
+        title="Camera & mic needed"
+        sub="Allow camera and microphone access, then start again."
+        onRetry={beginScan}
+      />
+    );
+  }
+  if (agent.status === "no-key") {
+    return (
+      <Splash
+        title="Voice is offline"
+        sub="No OpenAI key is set — add OPENAI_API_KEY to Convex to enable the live agent."
+        onRetry={() => void agent.connect()}
+      />
+    );
+  }
+  if (agent.status === "error") {
+    return (
+      <Splash title="Something hiccuped" sub={agent.error ?? "Tap to retry."} onRetry={() => void agent.connect()} />
+    );
+  }
+  if (agent.status !== "live") {
+    if (phase === "scanning") {
+      return <ScanScreen webcamRef={webcamRef} onQR={onQR} onSkip={startWithoutScan} />;
+    }
+    return <Attract status={agent.status} onStart={beginScan} ready={!!sessionId} />;
   }
 
   // ---- Conversation (live) ----
@@ -176,12 +185,7 @@ export function BoothKiosk() {
           </div>
           {!showCompany && <Welcome name={session?.visitorName} identified={identified} />}
           <div className={styles.webcamSlot}>
-            <WebcamCapture
-              ref={webcamRef}
-              idle={agent.voiceState === "idle"}
-              scanQR={!identified}
-              onQR={onQR}
-            />
+            <WebcamCapture ref={webcamRef} idle={agent.voiceState === "idle"} />
           </div>
         </section>
 
@@ -214,10 +218,34 @@ function Attract({
         {status === "ended"
           ? "Tap to start a new conversation"
           : ready
-            ? "Tap, allow the mic, and just talk"
+            ? "Tap to begin — then scan your LinkedIn QR"
             : "Setting up…"}
       </p>
     </button>
+  );
+}
+
+function ScanScreen({
+  webcamRef,
+  onQR,
+  onSkip,
+}: {
+  webcamRef: Ref<WebcamHandle>;
+  onQR: (value: string) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className={styles.scanScreen}>
+      <Wordmark />
+      <h1 className={styles.scanTitle}>Scan your LinkedIn QR to begin</h1>
+      <div className={styles.scanCam}>
+        <WebcamCapture ref={webcamRef} scanQR onQR={onQR} />
+      </div>
+      <p className={styles.scanHint}>Hold it steady in the frame — I start the moment I see it.</p>
+      <button type="button" className={styles.skipLink} onClick={onSkip}>
+        I don&apos;t have a QR — start anyway
+      </button>
+    </div>
   );
 }
 
@@ -248,11 +276,9 @@ function Welcome({ name, identified }: { name?: string; identified: boolean }) {
   if (!identified) {
     return (
       <div className={styles.welcome}>
-        <p className={styles.welcomeEyebrow}>Step one</p>
-        <h2 className={styles.welcomeTitle}>Hold your LinkedIn QR up to the camera.</h2>
-        <p className={styles.welcomeSub}>
-          I&apos;ll pull up your world so we can skip the small talk — or just tell me your name.
-        </p>
+        <p className={styles.welcomeEyebrow}>Let&apos;s talk</p>
+        <h2 className={styles.welcomeTitle}>Tell me a bit about yourself.</h2>
+        <p className={styles.welcomeSub}>Your name and company — I&apos;ll take it from there.</p>
       </div>
     );
   }

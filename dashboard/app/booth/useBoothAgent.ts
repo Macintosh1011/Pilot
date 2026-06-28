@@ -5,8 +5,9 @@ import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@cvx/_generated/api";
 import type { Id } from "@cvx/_generated/dataModel";
+import type { Session } from "../types";
 import { BOOTH_WEB_PROMPT } from "./prompt";
-import { buildBoothTools } from "./tools";
+import { buildBoothTools, summarizeEnrichment } from "./tools";
 import type { WebcamHandle } from "./components/WebcamCapture";
 import type { Turn } from "./components/Transcript";
 import type { VoiceState } from "./components/VoiceOrb";
@@ -20,9 +21,10 @@ export type BoothStatus =
   | "no-key"
   | "no-mic";
 
-// Sent once after connect so the agent speaks first; filtered out of the visible transcript.
-const KICKOFF =
-  "(A visitor just walked up to the booth. Greet them warmly and ask them to hold their LinkedIn QR code up to the camera so you can pull up their world.)";
+// Opening line injected after connect so the agent speaks first; filtered from the visible
+// transcript. Used only when we couldn't resolve the visitor (the "start anyway" escape).
+const GENERIC_OPENING =
+  "(A visitor just walked up to the booth. Greet them warmly and ask their name and company so you can look them up.)";
 
 // Loose mirror of the SDK history item shape so we can map without fighting generics.
 type HistoryItem = {
@@ -105,17 +107,6 @@ export function useBoothAgent(opts: {
     [convex, sessionId],
   );
 
-  // Inject a stage-direction into the live session (e.g. the VERIFIED VISITOR note after a
-  // QR scan). sendMessage triggers the agent's next spoken turn; the note is filtered from
-  // the visible transcript by the parenthesis rule in handleHistory.
-  const sendContext = useCallback((text: string) => {
-    try {
-      sessionRef.current?.sendMessage(text);
-    } catch (e) {
-      console.error("[booth context]", e);
-    }
-  }, []);
-
   const stop = useCallback(() => {
     try {
       sessionRef.current?.close();
@@ -127,6 +118,17 @@ export function useBoothAgent(opts: {
     busyRef.current = false;
     setVoiceState("idle");
     setStatus("ended");
+  }, []);
+
+  // Inject a stage-direction into the live session (e.g. the verified-visitor note after a QR
+  // scan). sendMessage triggers the agent's next spoken turn; parenthesized notes are filtered
+  // from the visible transcript in handleHistory.
+  const sendContext = useCallback((text: string) => {
+    try {
+      sessionRef.current?.sendMessage(text);
+    } catch (e) {
+      console.error("[booth context]", e);
+    }
   }, []);
 
   const connect = useCallback(async () => {
@@ -168,7 +170,7 @@ export function useBoothAgent(opts: {
       config: {
         audio: {
           input: {
-            transcription: { model: "whisper-1" },
+            transcription: { model: "gpt-4o-mini-transcribe" },
             // Noisy booth: energy-gated VAD with a high threshold ignores quieter/distant
             // chatter, a longer silence window waits for a real pause, and
             // interruptResponse:false stops bystanders from cutting the agent off mid-sentence.
@@ -190,7 +192,14 @@ export function useBoothAgent(opts: {
     session.on("history_updated", (history) =>
       handleHistory(history as unknown as HistoryItem[]),
     );
+    // The model started a turn but no audio yet — show "thinking" so the gap right after the
+    // visitor stops talking doesn't read as "it didn't hear me".
+    session.on("agent_start", () => {
+      busyRef.current = true;
+      recomputeVoice();
+    });
     session.on("audio_start", () => {
+      busyRef.current = false;
       speakingRef.current = true;
       recomputeVoice();
     });
@@ -217,9 +226,18 @@ export function useBoothAgent(opts: {
     setStatus("live");
     setVoiceState("listening");
 
-    // The agent speaks first: nudge it that a visitor just walked up.
+    // Open by name if we already scanned their LinkedIn before connecting; else generic.
+    let greeting = GENERIC_OPENING;
     try {
-      session.sendMessage(KICKOFF);
+      const s = (await convex.query(api.sessions.get, { sessionId })) as Session | null;
+      if (s?.visitorName) {
+        greeting = `(The visitor just scanned their LinkedIn QR. ${summarizeEnrichment(s)} Greet them warmly by name and jump straight into what they're working on — do NOT ask them to scan anything, you already have them.)`;
+      }
+    } catch (e) {
+      console.error("[booth opening]", e);
+    }
+    try {
+      session.sendMessage(greeting);
     } catch (e) {
       console.error("[booth greeting]", e);
     }

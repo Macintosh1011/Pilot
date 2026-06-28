@@ -1,8 +1,10 @@
+"use client";
 // Visitor-facing CRM contact card for the booth kiosk.
 // Renders live as the AI converses: identity → enrichment → needs → urgency → confidence.
 // Each section mounts only once its data exists and animates in with the rise keyframe.
-// Server component — no hooks; parent (orchestration layer) feeds fresh props reactively.
+// 'use client' is required for the confidence count-up animation (useEffect + RAF).
 
+import { useEffect, useRef, useState } from "react";
 import type { Session, Urgency } from "../../types";
 import { Spark } from "../../components/Spark";
 import { Panel } from "../../components/Panel";
@@ -234,17 +236,52 @@ function UrgencyStrip({ session }: { session: Session }) {
 // ─── Section 5: Confidence meter ──────────────────────────────────────────────
 
 function ConfidenceMeter({ session }: { session: Session }) {
-  const value = confidenceValue(session.confidence);
+  const target = confidenceValue(session.confidence);
+
+  // Count-up: interpolate the displayed number from wherever it last settled to
+  // the new target over 500ms using RAF. The bar's CSS transition handles the
+  // fill width independently; only the numeric label is animated here.
+  const [displayed, setDisplayed] = useState(target);
+  const displayedRef = useRef(target);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const from = displayedRef.current;
+    const to = target;
+    if (from === to) return;
+
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+    const duration = 500;
+    const startTime = performance.now();
+
+    function tick(now: number) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const current = Math.round(from + (to - from) * t);
+      displayedRef.current = current;
+      setDisplayed(current);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target]);
 
   return (
     <div className={styles.confidenceSection}>
       <div className={styles.confidenceTopRow}>
         <div>
           <p className={styles.confidenceLabel}>Confidence</p>
-          <span className={styles.scoreNumber}>{value}</span>
+          <span className={styles.scoreNumber}>{displayed}</span>
         </div>
         {/* Decorative spark at high confidence */}
-        {value >= 70 && (
+        {target >= 70 && (
           <Spark size={28} color="var(--clay)" />
         )}
       </div>
@@ -253,12 +290,12 @@ function ConfidenceMeter({ session }: { session: Session }) {
       <div
         className={styles.meterTrack}
         role="meter"
-        aria-valuenow={value}
+        aria-valuenow={target}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Confidence score: ${value} out of 100`}
+        aria-label={`Confidence score: ${target} out of 100`}
       >
-        <div className={styles.meterFill} style={{ width: `${value}%` }} />
+        <div className={styles.meterFill} style={{ width: `${target}%` }} />
         <span className={styles.meterTick + " " + styles.meterTickQ1} />
         <span className={styles.meterTick + " " + styles.meterTickQ2} />
         <span className={styles.meterTick + " " + styles.meterTickQ3} />

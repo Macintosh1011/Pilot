@@ -30,6 +30,9 @@ const accountSchema = z.object({
 });
 
 const viewParamsSchema = z.object({
+  // Universal — powers the "LIVE · {company}" chip on every view
+  company: z.string().nullable().optional(),
+  // churn view
   netMrr: z.string().nullable().optional(),
   churnRate: z.string().nullable().optional(),
   mrrAtRisk: z.string().nullable().optional(),
@@ -38,10 +41,21 @@ const viewParamsSchema = z.object({
   accounts: z.array(accountSchema).nullable().optional(),
   period: z.string().nullable().optional(),
   cohort: z.string().nullable().optional(),
+  // alerts view
   severity: z.string().nullable().optional(),
+  // integrations view
+  techStack: z.string().nullable().optional(),
+  // pricing view
   plan: z.string().nullable().optional(),
-  provider: z.string().nullable().optional(),
+  employeeCount: z.string().nullable().optional(),
+  // query-result view
   query: z.string().nullable().optional(),
+  columns: z.string().nullable().optional(),
+  rows: z.string().nullable().optional(),
+  // home view
+  role: z.string().nullable().optional(),
+  // legacy — kept for backward compat
+  provider: z.string().nullable().optional(),
 });
 
 // Turn the enriched card into a short briefing the agent can weave in (never read aloud raw).
