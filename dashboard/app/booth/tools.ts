@@ -33,6 +33,17 @@ const escalationSchema = z.object({
   reason: z.string(),
 });
 
+const languageSchema = z.object({
+  lang: z.string(),
+  answer: z.string(),
+});
+
+const clusterSchema = z.object({
+  topic: z.string(),
+  share: z.union([z.string(), z.number()]),
+  trend: z.string(),
+});
+
 const viewParamsSchema = z.object({
   // Universal — powers the "LIVE · {company}" chip on every view
   company: z.string().nullable().optional(),
@@ -47,6 +58,7 @@ const viewParamsSchema = z.object({
   csat: z.string().nullable().optional(),
   hoursSaved: z.string().nullable().optional(),
   series: z.string().nullable().optional(),
+  headline: z.string().nullable().optional(),
   topTopics: z.array(topicSchema).nullable().optional(),
   // alerts view — escalations and doc gaps
   severity: z.string().nullable().optional(),
@@ -58,6 +70,45 @@ const viewParamsSchema = z.object({
   agents: z.string().nullable().optional(),
   // home view
   role: z.string().nullable().optional(),
+  // actions view
+  actionType: z.string().nullable().optional(),
+  orderRef: z.string().nullable().optional(),
+  outcome: z.string().nullable().optional(),
+  customer: z.string().nullable().optional(),
+  // voice view
+  caller: z.string().nullable().optional(),
+  callDuration: z.string().nullable().optional(),
+  // proactive view
+  signal: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  channel: z.string().nullable().optional(),
+  // sentiment view
+  sentiment: z.string().nullable().optional(),
+  tier: z.string().nullable().optional(),
+  routedTo: z.string().nullable().optional(),
+  // channels view
+  channels: z.array(z.string()).nullable().optional(),
+  volumeByChannel: z.record(z.string(), z.union([z.string(), z.number()])).nullable().optional(),
+  // languages view
+  languages: z.array(languageSchema).nullable().optional(),
+  // brand-voice view
+  tone: z.string().nullable().optional(),
+  sampleQuestion: z.string().nullable().optional(),
+  // knowledge view
+  coverage: z.union([z.string(), z.number()]).nullable().optional(),
+  gapTopic: z.string().nullable().optional(),
+  // compliance view
+  region: z.string().nullable().optional(),
+  // insights view
+  clusters: z.array(clusterSchema).nullable().optional(),
+  risingTopic: z.string().nullable().optional(),
+  // copilot view
+  ticketSubject: z.string().nullable().optional(),
+  customerMessage: z.string().nullable().optional(),
+  suggestedReply: z.string().nullable().optional(),
+  // experiments view
+  variantA: z.string().nullable().optional(),
+  variantB: z.string().nullable().optional(),
 });
 
 // Turn the enriched card into a short briefing the agent can weave in (never read aloud raw).
@@ -155,9 +206,13 @@ export function buildBoothTools(ctx: BoothToolContext) {
   const showView = tool({
     name: "show_view",
     description:
-      "Drive the on-screen Quill demo to the view that best matches the visitor's stated problem. Pass their OWN support numbers as display strings in params to make the dashboard theirs. Views: query-result = hero live-answer demo (a real customer question answered instantly with cited sources); churn = IMPACT dashboard (deflection rate, ticket volume, response time, CSAT); alerts = escalations and doc gaps; integrations = connect their support sources; pricing = plans; home = greeting or recap.",
+      "Drive the on-screen Quill demo to the view that best matches the visitor's stated problem. Pass their OWN numbers as display strings in params to personalise. Core views: query-result = live-answer hero; churn = impact dashboard; alerts = escalations; integrations = connect sources; pricing = plans; home = greeting/recap. Platform views: actions = API-driven resolution; voice = phone call handling; proactive = Quill reaches out first; sentiment = VIP routing; channels = omnichannel inbox; languages = 50+ language answers; brand-voice = tone tuning; knowledge = KB + auto-articles; compliance = PII/SOC 2; insights = VoC clusters; copilot = agent reply drafting; experiments = A/B answer testing.",
     parameters: z.object({
-      view: z.enum(["home", "churn", "alerts", "pricing", "integrations", "query-result"]),
+      view: z.enum([
+        "home", "query-result", "churn", "alerts", "integrations", "pricing",
+        "actions", "voice", "proactive", "sentiment", "channels", "languages",
+        "brand-voice", "knowledge", "compliance", "insights", "copilot", "experiments",
+      ]),
       params: viewParamsSchema.nullable().optional(),
     }),
     execute: guard(async ({ view, params }) => {

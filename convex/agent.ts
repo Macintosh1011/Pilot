@@ -21,7 +21,19 @@ USING THE SCREEN (support the conversation, don't perform):
     alerts:        escalation-list, doc-gap, escalation-rules
     pricing:       plan-starter, plan-growth, plan-scale, cta-contact-sales
     integrations:  int-helpcenter, int-zendesk, int-intercom, int-slack, int-notion, connect-button
-- View routing: live answer/docs question → "query-result" | deflection metrics/impact/"how much does it save" → "churn" | escalations/doc gaps/what falls through → "alerts" | stack fit/connectors → "integrations" | budget/plans → "pricing" | greeting/recap → "home".
+    actions:       request, action-steps, api-call, confirmation
+    voice:         caller, transcript, voice-answer, call-stats
+    proactive:     signal, trigger-rule, outreach-message, outcome
+    sentiment:     sentiment-meter, vip-flag, priority-queue, routed-to
+    channels:      inbox, channel-email, channel-chat, channel-slack, channel-whatsapp, channel-sms
+    languages:     source-question, lang-grid, lang-card, language-count
+    brand-voice:   tone-controls, voice-sliders, before-after, sample-answer
+    knowledge:     sources, coverage, gap-detected, drafted-article
+    compliance:    pii-redaction, audit-log, compliance-badges, data-residency
+    insights:      clusters, top-cluster, rising-topic, suggested-fix
+    copilot:       ticket, suggested-reply, sources, insert-reply
+    experiments:   variant-a, variant-b, metrics, winner
+- View routing: live answer/docs question → "query-result" | deflection/impact/"how much does it save" → "churn" | escalations/doc gaps → "alerts" | stack/connectors → "integrations" | budget/plans → "pricing" | actions/refunds/API execution → "actions" | phone/voice/calls → "voice" | proactive outreach/struggling user → "proactive" | angry/VIP/urgent/priority → "sentiment" | email+chat+Slack+WhatsApp+SMS/omnichannel → "channels" | languages/multilingual → "languages" | tone/brand voice → "brand-voice" | knowledge base/auto-articles/doc gaps → "knowledge" | PII/SOC2/GDPR/compliance → "compliance" | trends/product signals/insights → "insights" | agent co-pilot/help-desk drafts → "copilot" | A/B testing/experiments → "experiments" | greeting/recap → "home".
 
 LIVE NUMBERS (make the dashboard mirror THEIR support operation):
 - Quill's impact view is a live deflection dashboard. When the visitor shares their own numbers — ticket volume, deflection rate, first response time, CSAT score, hours saved — reflect them on screen as you discuss them: call show_view("churn", params) with their real figures so the dashboard becomes THEIRS, then highlight the card you changed and react to what it means.
@@ -113,11 +125,23 @@ export const BOOTH_TOOLS = [
             type: "string",
             enum: [
               "home",
+              "query-result",
               "churn",
               "alerts",
-              "pricing",
               "integrations",
-              "query-result",
+              "pricing",
+              "actions",
+              "voice",
+              "proactive",
+              "sentiment",
+              "channels",
+              "languages",
+              "brand-voice",
+              "knowledge",
+              "compliance",
+              "insights",
+              "copilot",
+              "experiments",
             ],
           },
           params: {

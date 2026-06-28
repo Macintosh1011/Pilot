@@ -1,0 +1,303 @@
+/* ─── Status chip ────────────────────────────────────────────────────────────── */
+
+.statusChip {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay);
+  background: rgba(204, 120, 92, 0.10);
+  border: 1px solid rgba(204, 120, 92, 0.28);
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* ─── Question card ──────────────────────────────────────────────────────────── */
+
+.questionCard {
+  padding: 0.875rem 1.125rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  animation: expRise 300ms ease both;
+}
+
+@keyframes expRise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.questionLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.questionText {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ─── Variant grid ───────────────────────────────────────────────────────────── */
+
+.variantGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+/* ─── Variant card ───────────────────────────────────────────────────────────── */
+
+.variantCard {
+  padding: 1rem 1.125rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: box-shadow 200ms ease;
+  animation: expRise 360ms ease 40ms both;
+}
+
+.variantCardWinner {
+  background: var(--card);
+  border-color: rgba(204, 120, 92, 0.35);
+  box-shadow: 0 4px 16px rgba(204, 120, 92, 0.10);
+  animation: expRise 360ms ease 80ms both;
+}
+
+.variantHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variantBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.375rem;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.variantBadgeB {
+  background: rgba(204, 120, 92, 0.15);
+  border-color: rgba(204, 120, 92, 0.35);
+  color: var(--clay);
+}
+
+.variantTitle {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex: 1;
+}
+
+.upliftBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--clay);
+  padding: 0.175rem 0.45rem;
+  border-radius: 999px;
+}
+
+.variantText {
+  font-family: var(--font-serif);
+  font-size: 0.875rem;
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
+}
+
+/* ─── Per-variant metrics ────────────────────────────────────────────────────── */
+
+.variantMetrics {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.metricValue {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+}
+
+.metricGood {
+  color: var(--clay);
+}
+
+.metricLabel {
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.metricTrack {
+  height: 0.3125rem;
+  background: rgba(20, 20, 19, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.metricBar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Metrics summary row (data-el="metrics") ────────────────────────────────── */
+
+.metricsSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+  transition: box-shadow 200ms ease;
+  animation: expRise 400ms ease 100ms both;
+}
+
+.summaryItem {
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryVal {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.summaryLabel {
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ─── Winner banner (data-el="winner") ──────────────────────────────────────── */
+
+.winnerBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.125rem;
+  background: rgba(90, 122, 88, 0.08);
+  border: 1px solid rgba(90, 122, 88, 0.25);
+  border-radius: 0.9375rem;
+  transition: box-shadow 200ms ease;
+  animation: expRise 420ms ease 120ms both;
+}
+
+.winnerLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.winnerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--paper);
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.winnerTitle {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--success);
+  line-height: 1.2;
+  margin-bottom: 0.125rem;
+}
+
+.winnerSub {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(90, 122, 88, 0.75);
+}
+
+.winnerCta {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  cursor: default;
+  flex-shrink: 0;
+}

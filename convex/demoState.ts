@@ -6,18 +6,32 @@ import { internal } from "./_generated/api";
  * The live demo is shared state, NOT browser automation. GPT's show_view tool
  * writes here; Builder 1's iPad demo view re-renders from it.
  *
- * View contract (co-owned with B1) for the "Acme Analytics" demo product:
- *   view: "home" | "churn" | "alerts" | "pricing" | "integrations" | "query-result"
- *   params: view-specific (see INTERFACES.md)
+ * View contract (co-owned with B1) for the Quill demo:
+ *   view: one of VALID_VIEWS (18 total)
+ *   params: view-specific (see views/types.ts)
  *   highlight: optional elementId to pulse/focus
  */
 const VALID_VIEWS = [
+  // core (original 6)
   "home",
+  "query-result",
   "churn",
   "alerts",
-  "pricing",
   "integrations",
-  "query-result",
+  "pricing",
+  // add-on / feature views (12 new)
+  "actions",
+  "voice",
+  "proactive",
+  "sentiment",
+  "channels",
+  "languages",
+  "brand-voice",
+  "knowledge",
+  "compliance",
+  "insights",
+  "copilot",
+  "experiments",
 ];
 
 export const setDemoState = mutation({

@@ -1,0 +1,188 @@
+/* ─── Languages view ────────────────────────────────────────────────────────── */
+
+/* ─── Language count badge ───────────────────────────────────────────────────── */
+
+.langCountBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+  padding: 0.625rem 1rem;
+  background: rgba(204, 120, 92, 0.08);
+  border: 1px solid rgba(204, 120, 92, 0.25);
+  border-radius: 0.9375rem;
+  transition: box-shadow 200ms ease;
+}
+
+.langCountNum {
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--clay);
+  line-height: 1;
+}
+
+.langCountLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay);
+  opacity: 0.7;
+}
+
+/* ─── Source question ────────────────────────────────────────────────────────── */
+
+.sourceQuestion {
+  padding: 0.9375rem 1.125rem;
+  background: var(--panel);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 0.9375rem;
+  margin-bottom: 1.125rem;
+  transition: box-shadow 200ms ease;
+}
+
+.sourceLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.375rem;
+}
+
+.sourceDot {
+  display: inline-block;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--clay);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: srcDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes srcDotPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.sourceText {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ─── Language grid ──────────────────────────────────────────────────────────── */
+
+.langGrid {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.125rem;
+  /* columns set inline per card count */
+  grid-template-columns: 1fr 1fr;
+  transition: box-shadow 200ms ease;
+}
+
+.langCard {
+  padding: 0.9375rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  animation: cardRise 380ms ease both;
+  transition: box-shadow 200ms ease;
+}
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.langHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.langCode {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  background: rgba(204, 120, 92, 0.10);
+  border: 1px solid rgba(204, 120, 92, 0.22);
+  border-radius: 999px;
+  color: var(--clay);
+  flex-shrink: 0;
+}
+
+.langName {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.langText {
+  font-family: var(--font-serif);
+  font-size: 0.875rem;
+  color: var(--ink);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Footer stats ───────────────────────────────────────────────────────────── */
+
+.footerRow {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+}
+
+.footerStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.footerNum {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.footerMeta {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.footerDivider {
+  width: 1px;
+  height: 2rem;
+  background: var(--border);
+  flex-shrink: 0;
+}

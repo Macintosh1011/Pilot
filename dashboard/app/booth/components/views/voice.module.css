@@ -1,0 +1,276 @@
+/* ─── Voice view ─────────────────────────────────────────────────────────────── */
+
+/* Call card */
+
+.callCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.callerAvatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--chip);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.callerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.callerName {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 0.1875rem;
+}
+
+.callerMeta {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+.callRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.callDuration {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.callActivePill {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(204, 120, 92, 0.12);
+  border: 1px solid rgba(204, 120, 92, 0.30);
+  color: var(--clay);
+}
+
+/* ── Waveform ─────────────────────────────────────────────────────────────────── */
+
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 2rem;
+  padding: 0 0.375rem;
+}
+
+.waveBar {
+  width: 3px;
+  background: var(--clay);
+  border-radius: 2px;
+  transform-origin: center;
+  /* animation-duration set inline per bar */
+  animation-name: wavePulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+@keyframes wavePulse {
+  from { transform: scaleY(0.12); opacity: 0.5; }
+  to   { transform: scaleY(1);    opacity: 1;   }
+}
+
+/* ── Transcript ───────────────────────────────────────────────────────────────── */
+
+.transcriptCard {
+  padding: 1rem 1.125rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: box-shadow 200ms ease;
+}
+
+.transcriptEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.transcriptLine {
+  display: flex;
+  gap: 0.625rem;
+  animation: lineIn 300ms ease both;
+}
+
+@keyframes lineIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.transcriptSpeakerCaller {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 0.1875rem;
+  width: 3.5rem;
+}
+
+.transcriptSpeakerQuill {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--clay);
+  flex-shrink: 0;
+  padding-top: 0.1875rem;
+  width: 3.5rem;
+}
+
+.transcriptText {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ── Quill voice answer ───────────────────────────────────────────────────────── */
+
+.voiceAnswerCard {
+  padding: 1.125rem 1.25rem;
+  background: var(--card);
+  border: 1.5px solid rgba(204, 120, 92, 0.30);
+  border-radius: 0.25rem 0.9375rem 0.9375rem 0.9375rem;
+  box-shadow: 0 4px 16px rgba(204, 120, 92, 0.08);
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.voiceAnswerLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay);
+  margin-bottom: 0.5rem;
+}
+
+.voiceAnswerDot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--clay);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.3; }
+}
+
+.voiceAnswerText {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Call stats ───────────────────────────────────────────────────────────────── */
+
+.callStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  transition: box-shadow 200ms ease;
+}
+
+.callStatCard {
+  padding: 0.875rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  animation: cardIn 380ms ease both;
+}
+
+.callStatCard.success {
+  background: rgba(90, 122, 88, 0.07);
+  border-color: rgba(90, 122, 88, 0.25);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.callStatValue {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
+}
+
+.callStatValue.good {
+  color: var(--success);
+}
+
+.callStatLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

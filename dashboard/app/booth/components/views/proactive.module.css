@@ -1,0 +1,324 @@
+/* ─── Section header ─────────────────────────────────────────────────────────── */
+
+.sectionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.375rem;
+}
+
+.heading {
+  font-family: var(--font-serif);
+  font-size: 1.875rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.beforeLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* ─── Flow stack ─────────────────────────────────────────────────────────────── */
+
+.flowStack {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Connector ──────────────────────────────────────────────────────────────── */
+
+.connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.125rem 0;
+}
+
+.connectorLine {
+  width: 1px;
+  height: 1.5rem;
+  background: rgba(20, 20, 19, 0.14);
+}
+
+.connectorArrow {
+  width: 0;
+  height: 0;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-top: 5px solid rgba(20, 20, 19, 0.18);
+}
+
+/* ─── Signal card ────────────────────────────────────────────────────────────── */
+
+.signalCard {
+  padding: 1rem 1.25rem;
+  background: rgba(196, 154, 108, 0.10);
+  border: 1px solid rgba(196, 154, 108, 0.38);
+  border-radius: 0.9375rem;
+  animation: cardRise 340ms ease both;
+  transition: box-shadow 200ms ease;
+}
+
+.signalHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.signalDot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--warning);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: signalPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes signalPulse {
+  0%, 100% { opacity: 1;    transform: scale(1);    }
+  50%       { opacity: 0.55; transform: scale(1.35); }
+}
+
+.signalLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--warning);
+}
+
+.signalText {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 0.375rem;
+  line-height: 1.35;
+}
+
+.signalMeta {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ─── Trigger rule card ──────────────────────────────────────────────────────── */
+
+.ruleCard {
+  padding: 1rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid rgba(20, 20, 19, 0.08);
+  border-radius: 0.9375rem;
+  animation: cardRise 400ms ease both;
+  transition: box-shadow 200ms ease;
+}
+
+.ruleLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.4375rem;
+}
+
+.ruleText {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 0.625rem;
+}
+
+.ruleChannels {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.ruleChannelLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.channelChip {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  background: var(--chip);
+  border: 1px solid rgba(20, 20, 19, 0.12);
+  border-radius: 999px;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+/* ─── Outreach message card ──────────────────────────────────────────────────── */
+
+.messageCard {
+  padding: 1.125rem 1.25rem;
+  background: var(--card);
+  border: 1.5px solid rgba(204, 120, 92, 0.28);
+  border-radius: 0.25rem 0.9375rem 0.9375rem 0.9375rem;
+  box-shadow: 0 4px 16px rgba(204, 120, 92, 0.08);
+  animation: cardRise 460ms ease both;
+  transition: box-shadow 200ms ease;
+}
+
+.messageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.messageLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+.messageDot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--clay);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.4; }
+}
+
+.channelBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(204, 120, 92, 0.12);
+  border: 1px solid rgba(204, 120, 92, 0.28);
+  color: var(--clay);
+}
+
+.messageBubble {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+  font-style: italic;
+}
+
+.messageTiming {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+/* ─── Outcome card ───────────────────────────────────────────────────────────── */
+
+.outcomeCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 0.875rem 1.125rem;
+  background: rgba(90, 122, 88, 0.07);
+  border: 1px solid rgba(90, 122, 88, 0.22);
+  border-radius: 0.9375rem;
+  animation: cardRise 520ms ease both;
+  transition: box-shadow 200ms ease;
+}
+
+.outcomeDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--success);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 0.3125rem;
+}
+
+.outcomeBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.outcomeTitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--success);
+  margin: 0 0 0.25rem;
+}
+
+.outcomeDetail {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.outcomeStat {
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--success);
+  flex-shrink: 0;
+  line-height: 1;
+  padding-top: 0.0625rem;
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────────── */
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}

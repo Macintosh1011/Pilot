@@ -1,0 +1,161 @@
+/* ─── Brand Voice view ─────────────────────────────────────────────────────── */
+
+/* ── Tone badge (header) ── */
+
+.toneBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(204, 120, 92, 0.08);
+  border: 1px solid rgba(204, 120, 92, 0.22);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+/* ── Tone controls card ── */
+
+.toneCard {
+  padding: 1.125rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid rgba(20, 20, 19, 0.06);
+  border-radius: 0.9375rem;
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.toneCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+/* ── Sliders ── */
+
+.sliderList {
+  display: grid;
+  gap: 1.125rem;
+  transition: box-shadow 200ms ease;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.sliderEndLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  width: 4.25rem;
+  flex-shrink: 0;
+}
+
+.sliderEndLabel.right {
+  text-align: right;
+}
+
+.sliderTrack {
+  flex: 1;
+  height: 0.375rem;
+  background: rgba(20, 20, 19, 0.08);
+  border-radius: 999px;
+  position: relative;
+}
+
+.sliderFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--clay);
+}
+
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1rem;
+  height: 1rem;
+  background: var(--clay);
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(20, 20, 19, 0.22);
+}
+
+/* ── Before / After ── */
+
+.beforeAfter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+  transition: box-shadow 200ms ease;
+}
+
+.baCard {
+  padding: 1.125rem 1.25rem;
+  border-radius: 0.9375rem;
+}
+
+.baCard.before {
+  background: var(--panel);
+  border: 1px solid rgba(20, 20, 19, 0.07);
+}
+
+.baCard.after {
+  background: var(--card);
+  border: 1.5px solid rgba(204, 120, 92, 0.28);
+  box-shadow: 0 4px 16px rgba(204, 120, 92, 0.08);
+}
+
+.baLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.625rem;
+}
+
+.baLabel.afterLabel {
+  color: var(--clay);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.baLabelDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  background: var(--clay);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+.baText {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+  transition: box-shadow 200ms ease;
+}
+
+.baText.muted {
+  color: var(--muted);
+}

@@ -1,0 +1,250 @@
+/* ─── Actions view ───────────────────────────────────────────────────────────── */
+
+/* Customer request bubble */
+
+.requestCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem 0.9375rem 0.9375rem 0.25rem;
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.requestAvatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--chip);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.requestMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.requestFrom {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.3125rem;
+}
+
+.requestText {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.requestRef {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.5rem;
+  background: rgba(204, 120, 92, 0.10);
+  border: 1px solid rgba(204, 120, 92, 0.25);
+  border-radius: 999px;
+  color: var(--clay);
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* ── Action steps pipeline ────────────────────────────────────────────────────── */
+
+.pipeline {
+  border: 1px solid var(--border);
+  border-radius: 0.9375rem;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1.125rem;
+  background: var(--card);
+  animation: stepIn 350ms ease both;
+}
+
+.stepRow + .stepRow {
+  border-top: 1px solid rgba(20, 20, 19, 0.06);
+}
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+.stepNum {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--clay);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.stepInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepName {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 0.125rem;
+}
+
+.stepDetail {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0;
+}
+
+.stepDone {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  color: var(--success);
+  background: rgba(90, 122, 88, 0.10);
+  border: 1px solid rgba(90, 122, 88, 0.22);
+}
+
+/* ── API call block ───────────────────────────────────────────────────────────── */
+
+.apiCallCard {
+  padding: 1rem 1.125rem;
+  background: var(--ink);
+  border-radius: 0.9375rem;
+  margin-bottom: 1.25rem;
+  transition: box-shadow 200ms ease;
+}
+
+.apiCallHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.apiMethod {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+.apiEndpoint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(250, 249, 245, 0.55);
+  margin-left: 0.5rem;
+}
+
+.apiStatusOk {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--success);
+}
+
+.apiBody {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: rgba(250, 249, 245, 0.78);
+  line-height: 1.65;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ── Confirmation card ────────────────────────────────────────────────────────── */
+
+.confirmCard {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem 1.25rem;
+  background: rgba(90, 122, 88, 0.08);
+  border: 1.5px solid rgba(90, 122, 88, 0.30);
+  border-radius: 0.9375rem;
+  transition: box-shadow 200ms ease;
+}
+
+.confirmIcon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: rgba(90, 122, 88, 0.15);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.confirmText {
+  flex: 1;
+  min-width: 0;
+}
+
+.confirmTitle {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--success);
+  margin: 0 0 0.1875rem;
+}
+
+.confirmDetail {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0;
+}
+
+.confirmTime {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--success);
+  flex-shrink: 0;
+}
