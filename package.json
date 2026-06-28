@@ -1,0 +1,18 @@
+{
+  "name": "boothpilot-brain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BoothPilot Builder 2 — the Brain. Convex spine + GPT orchestration + fiber.ai enrichment + scoring + badge + email review queue.",
+  "type": "module",
+  "scripts": {
+    "convex": "convex dev",
+    "convex:once": "convex dev --once",
+    "codegen": "convex codegen",
+    "seed": "convex run seed:run",
+    "dashboard": "npm --prefix dashboard run dev",
+    "dev": "convex dev"
+  },
+  "devDependencies": {
+    "convex": "^1.17.4"
+  }
+}
