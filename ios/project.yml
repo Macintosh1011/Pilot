@@ -38,16 +38,13 @@ targets:
         UIStatusBarHidden: true
         UIViewControllerBasedStatusBarAppearance: false
         ITSAppUsesNonExemptEncryption: false
+        UIAppFonts:
+          - Newsreader-Variable.ttf
+          - Newsreader-Italic.ttf
+          - JetBrainsMono-Variable.ttf
         NSMicrophoneUsageDescription: "BoothPilot uses the microphone so you can have a conversation with the booth."
         NSCameraUsageDescription: "BoothPilot uses the camera to scan your LinkedIn QR code."
-        # Booth runs on the iPad in landscape on a stand; portrait allowed for hand-offs.
+        # Booth runs on the iPad in landscape on a stand — lock it.
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-        # Dev kiosk loads the web app over http on localhost / LAN. Fine for a booth on a private network.
-        NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
-        # Override at runtime with `defaults` or in Xcode scheme env; falls back to localhost:3000.
-        BoothWebURL: "http://localhost:3000"

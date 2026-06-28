@@ -9,8 +9,7 @@ struct BoothPilotApp: App {
 
     var body: some Scene {
         WindowGroup {
-            KioskView()
-                .ignoresSafeArea()
+            BoothView()
                 .statusBarHidden()
                 .persistentSystemOverlays(.hidden)
         }

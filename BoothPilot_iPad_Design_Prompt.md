@@ -1,10 +1,10 @@
-# BoothPilot — iPad App UI Design Prompt
+# BoothPilot — iPad App UI Design Prompt (Anthropic editorial style)
 
-> Paste into v0 / Lovable / Cursor / Figma AI (or hand to a designer). Tune the "Acme Analytics" demo panel to whatever product the booth will demo.
+> Paste into v0 / Lovable / Cursor / Figma AI (or hand to a designer). Visual direction: Anthropic's brand — warm paper, clay accent, Anthropic Serif, hand-drawn spark, and **animated "typed" text**. Tune the "Acme Analytics" demo panel to whatever product the booth will demo.
 
 ---
 
-**Design the UI for BoothPilot**, a physical AI booth concierge running full-screen on an **iPad in landscape** at a startup conference. A visitor walks up and has a natural **voice conversation** with an AI that researches them, demos a product to their exact use case, and hands them a personalized, shareable badge. Make it high-fidelity, premium, and kiosk-grade.
+**Design the UI for BoothPilot**, a physical AI booth concierge running full-screen on an **iPad in landscape** at a startup conference. A visitor walks up and has a natural **voice conversation** with an AI that researches them, demos a product to their exact use case, and hands them a personalized, shareable badge. The whole thing should feel like a calm, premium, **editorial** experience — think the Anthropic "Meet Claude" homepage brought to life and made conversational.
 
 ## Platform & constraints
 - iPad, **landscape**, full-screen kiosk — no browser chrome, no status bar.
@@ -12,41 +12,60 @@
 - **Voice-first**: the screen *supports* a spoken conversation; it is NOT a chat app and has no keyboard flows.
 - One continuous experience with distinct **states** (below), not a multi-page website.
 
-## Brand & visual language
-- **Mood:** premium, calm, intelligent, friendly — Linear / Arc / Raycast polish meets a warm concierge. B2B, but delightful.
-- **Palette:** deep navy base (`#0B1B2B`, `#12283D`), off-white text (`#F5F8FA`), one vivid accent **teal** (`#1AA17E`) with a brighter glow (`#37E0B0`). Soft gradients and subtle depth, not flat. Dark theme.
-- **Intent glow:** an ambient color field that subtly shifts with engagement (an internal lead-quality signal made *ambient* — never a number shown to the visitor).
-- **Type:** clean geometric/grotesque sans (Inter / General Sans) for UI; a refined display weight for the badge/archetype. Big, confident headlines.
-- **Shape & space:** rounded cards (20–28px radius), generous whitespace, soft shadows/glows.
-- **Motion:** smooth, organic, alive — never jittery.
+## Visual language — Anthropic editorial
+- **Mood:** warm, literary, human, unhurried. Lots of whitespace. Feels hand-crafted, not "techy." Premium but friendly.
+- **Background:** warm paper/ivory `#FAF9F5` (panels slightly deeper `#F0EEE6`). A very subtle **paper grain** texture.
+- **Ink (text):** near-black warm `#141413`; secondary/muted `#6B6B63`.
+- **Accent — Clay/terracotta:** `#CC785C` primary, softer tan `#D4A27F`, deeper rust `#B05730` for depth. Use sparingly, like ink-on-paper highlights — for the spark, the cursor, key words, the badge.
+- **No dark theme, no neon, no glassmorphism.** Flat, printed, confident.
 
-## The voice presence ("orb")
-A central animated **orb/aura** is the AI's "face" — no literal avatar. Teal glow on navy.
-- **Idle:** slow ambient breathing.
-- **Listening:** gently reactive to the visitor's voice (subtle ripple/waveform).
-- **Speaking:** livelier pulse synced to speech.
-- **Thinking/working:** a shimmer while it researches/builds.
+## Type
+- **Anthropic Serif** for everything that matters — big display headlines AND body copy (like the reference, where even the paragraph is serif). Fallbacks: `Tiempos`, `Georgia`, transitional serif.
+- A small, restrained **grotesque/mono** only for micro-labels, nav, and the wordmark (letter-spaced, uppercase, small) — e.g. the BoothPilot wordmark styled like `BOOTHP\LOT` in the same spirit as `ANTHROP\C`.
+- Headlines are large, tight, elegant. Body is generous and readable.
+
+## Signature interaction — ANIMATED "TYPED" TEXT (the whole point)
+Text **types itself out**, character by character, like it's being written live — this is the defining motion of the app.
+- ~30–50ms per character with slight natural randomization; occasional brief "thinking" pause mid-sentence.
+- A **blinking cursor** (a clay-colored vertical bar or block) trails the text and rests at the end.
+- When the AI **speaks** (TTS), its captions **type in sync** with the voice.
+- Headlines on the attract/greeting states type out, then settle.
+- Key words can finish in **clay** for emphasis. Lines wrap gracefully; no layout jump.
+- Keep it smooth and legible — typing is elegant, never frantic.
+
+## The AI presence — the hand-drawn "spark"
+Instead of a glowing orb, the AI is represented by Anthropic's **hand-drawn starburst / spark** (single-weight line drawing, slightly imperfect, like the reference illustration), in ink or clay on paper.
+- **Idle:** slow, gentle rotation / soft breathing.
+- **Listening:** the rays subtly flex/ripple to the visitor's voice.
+- **Speaking:** a livelier shimmer/pulse, synced to the typed captions.
+- **Thinking/working:** the spark "draws itself" stroke by stroke.
+
+## Illustration & texture
+- Hand-drawn, single-weight line art; **cut-paper** geometric shapes in clay (echo the reference's cut-out head). Organic, slightly imperfect edges. Subtle grain overlay. Minimal, editorial, warm.
 
 ## Screens / states (design all five)
+1. **Attract / Idle** (no one present): a serene paper page. The spark gently turning; a large serif line **types out** ("Tell me what you're building." → blinking cursor), the `BOOTHP\LOT` wordmark, a subtle clay cut-paper shape. Looks like a beautiful printed poster that's quietly alive.
+2. **Greeting** (person just detected): the headline retypes into a warm welcome; the spark wakes; smooth transition into the conversation.
+3. **Conversation + Live Demo** (the hero state): editorial split layout —
+   - **Left ~⅖:** the hand-drawn spark + the AI's **typed caption** (large serif, last line or two, cursor blinking) + a quiet step indicator set in small caps (**MEET · UNDERSTAND · SHOW · BADGE**), the current step in clay.
+   - **Right ~⅗:** the **live product demo panel** ("Acme Analytics") the AI drives — a clean, paper-toned SaaS mock (a churn / at-risk-accounts view, a simple chart, an alerts toggle) that **visibly changes** as the conversation progresses, with calm transitions. Keep it on-brand (cream, ink, clay), not a generic dark dashboard.
+4. **LinkedIn QR scan overlay:** a friendly typed prompt ("Scan your LinkedIn QR — I'll personalize this.") over a tasteful viewfinder with a clay scan frame. Reassuring, minimal.
+5. **Badge reveal** (the finale): a gorgeous **editorial collectible card** — like a letterpress bookplate, not a holographic gamer card. Cream stock, ink + clay, the hand-drawn spark. Contents **type/reveal** in sequence:
+   - an **archetype** title in big Anthropic Serif (e.g., "The Churn Slayer"),
+   - a short **witty compliment** line (types out),
+   - 2–3 **stat bars** drawn in a hand-inked style animating up (e.g., Growth IQ 94 · Vision 91),
+   - a **discount code** set in mono,
+   - a **QR code** + a **Share** button (ink-filled pill).
+   - Tasteful, screenshot-worthy, unmistakably Anthropic-flavored.
 
-1. **Attract / Idle** (no one present): a beautiful ambient screen — orb breathing, big inviting line ("Step up — let's talk about what you're building"), BoothPilot wordmark. Must look alive from across the aisle.
-2. **Greeting** (person just detected): warm welcome, the orb wakes, transitions into the conversation. Brief.
-3. **Conversation + Live Demo** (the hero state): a split layout —
-   - **Left ~⅓:** the voice orb + an optional **large live caption** of the last line or two (so judges can read along) + a minimal step indicator (**Meet → Understand → Show → Badge**).
-   - **Right ~⅔:** the **live product demo panel** ("Acme Analytics") the AI drives — a clean SaaS dashboard mock (a churn / at-risk-accounts view, a chart, an alerts toggle) that **visibly changes** as the conversation progresses, with smooth transitions. This is where the "it's demoing *my* use case" wow lives.
-4. **LinkedIn QR scan overlay:** a friendly prompt + a camera viewfinder with a scan frame ("Scan your LinkedIn QR to personalize this"). Clean, reassuring.
-5. **Badge reveal** (the finale): a gorgeous, **collectible trading-card-style** badge, centered, with a satisfying reveal animation. Contains:
-   - an **archetype** title (e.g., "The Churn Slayer") in display type,
-   - a short **witty compliment** line,
-   - 2–3 **stat bars** (e.g., Growth IQ 94 · Vision 91) animating upward, playful and game-like,
-   - a **discount code** chip,
-   - a **QR code** ("take your badge / share it") + a **Share** button.
-   - Holographic / iridescent accents, premium feel — this is the screenshot people post.
+## Buttons & components
+- Primary CTA: **ink-filled pill** (`#141413`, cream text). Secondary: **outlined pill** (ink border, transparent). Rounded, generous padding — like the reference's "Try Claude" / "Get API Access".
+- Nav/labels: small uppercase letter-spaced grotesque.
 
 ## Details
-- Subtle BoothPilot wordmark throughout; an unobtrusive "Powered by OpenAI · Convex · fiber.ai · ElevenLabs" strip.
-- High contrast, large legible type, smooth (not seizure-inducing) motion.
-- **No forms, no dense text** — let visuals and voice carry the experience.
+- Subtle `BOOTHP\LOT` wordmark; an unobtrusive small-caps "POWERED BY OPENAI · CONVEX · FIBER.AI · ELEVENLABS" line.
+- High contrast (ink on paper), large legible serif, smooth motion.
+- **No forms, no dense text** — let the typing, the spark, and the voice carry it.
 
 ## Deliverable
-High-fidelity mockups (or a coded prototype) for all five states, plus the orb's idle/listening/speaking variants and the badge card. Make the **Conversation + Live Demo split** the hero shot. Frame everything as a **landscape iPad** kiosk.
+High-fidelity mockups (or a coded prototype) for all five states, plus the spark in idle/listening/speaking variants and the badge card. Show the **Conversation + Live Demo split** as the hero. Demonstrate the **typed-text animation** and the hand-drawn spark. Frame everything as a **landscape iPad** kiosk in the Anthropic palette with Anthropic Serif.
