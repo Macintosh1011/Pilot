@@ -1,0 +1,53 @@
+name: BoothPilot
+options:
+  bundleIdPrefix: dev.parkt
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "2" # iPad only
+    GENERATE_INFOPLIST_FILE: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+targets:
+  BoothPilot:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: BoothPilot
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.parkt.boothpilot
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: BoothPilot/Info.plist
+      properties:
+        CFBundleDisplayName: BoothPilot
+        CFBundleName: BoothPilot
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: "BoothPilot uses the microphone so you can have a conversation with the booth."
+        NSCameraUsageDescription: "BoothPilot uses the camera to scan your LinkedIn QR code."
+        # Booth runs on the iPad in landscape on a stand; portrait allowed for hand-offs.
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+        # Dev kiosk loads the web app over http on localhost / LAN. Fine for a booth on a private network.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        # Override at runtime with `defaults` or in Xcode scheme env; falls back to localhost:3000.
+        BoothWebURL: "http://localhost:3000"

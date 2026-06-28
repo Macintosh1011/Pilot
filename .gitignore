@@ -1,1 +1,4 @@
 .DS_Store
+
+# browser-automation scratch
+.playwright-mcp/
