@@ -27,7 +27,7 @@
 
 **THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes `demoState`; the iPad's demo view re-renders from it. You define the tools and the state shape.
 
-**Hardware reality:** Pi 5, kbd/mouse, ultrasonic, webcam, mic, wires, iPad. No LED/printer/speaker — audio on iPad, "lead quality" shown on screen, badge is a QR. (Doesn't affect you much; you're software.)
+**Hardware reality:** Pi 5, kbd/mouse, webcam, mic, wires, iPad. No LED/printer/speaker — audio on iPad, "lead quality" shown on screen, badge is a QR; presence is webcam-only. (Doesn't affect you much; you're software.)
 
 **Team map:** B1 = front of house · B2 (you) = brain · B3 = physical + integration/reliability lead.
 
@@ -69,7 +69,7 @@ You **provide** functions B1 calls + HTTP actions B3 calls.
 | `captureContact({email,phone,linkedinUrl})` | mutation | writes card |
 | `finalize(sessionId)` | action | scoring → badge → email draft |
 
-**HTTP actions you expose to B3 (the Pi):** `POST /hw/presence {deviceId, event, distanceCm, personSeen}` (B3 fuses ultrasonic + webcam → writes the `presence` table the iPad subscribes to). `GET /hw/poll`, `POST /hw/ack` are reserved but unused in this build (no Pi actuators).
+**HTTP actions you expose to B3 (the Pi):** `POST /hw/presence {deviceId, event, personSeen}` (B3 runs webcam person-detection → writes the `presence` table the iPad subscribes to). `GET /hw/poll`, `POST /hw/ack` are reserved but unused in this build (no Pi actuators).
 
 **Mock while teammates build:** seed dummy `sessions`/`demoState` so B1 can build UI and B3 can post presence before your pipeline is done. Stub fiber with a canned payload until the key works.
 

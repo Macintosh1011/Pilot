@@ -35,7 +35,7 @@
 The display surface and the electronics are decoupled and coordinate through Convex. This is what lets the iPad deliver a polished UI **without sacrificing the hardware**.
 
 - **iPad (Xcode / SwiftUI)** = the experience node: conversation UI, voice pipeline, camera (LinkedIn QR scan), the live demo view, and the Booth Badge. Replaces the cheap HDMI panel — better UI, same physical wow.
-- **Raspberry Pi 5** = headless **presence-sensing node**: detects whether a person is at the booth using an **ultrasonic sensor + webcam together** (fusion), and posts a `presence` event to Convex so the iPad greets.
+- **Raspberry Pi 5** = headless **presence-sensing node**: detects whether a person is at the booth using a **webcam** (person detection), and posts a `presence` event to Convex so the iPad greets. (The Pi's webcam watches the room; the iPad's own camera is kept free for the LinkedIn QR scan.)
 - **Convex** = the spine both subscribe to. The iPad and the Pi never talk directly (optional local-LAN fallback in §10).
 
 ```
@@ -54,8 +54,8 @@ The display surface and the electronics are decoupled and coordinate through Con
   │ OpenAI Whisper + GPT  │                       ▼           │  + scoring +  │
   │ ElevenLabs TTS        │                ┌──────────────┐   │  badge + email│
   │ fiber.ai (via Convex) │                │ Pi bridge:    │   └──────────────┘
-  └──────────────────────┘                 │ ultrasonic +  │
-   (badge = QR on iPad screen)              │ webcam → pres │
+  └──────────────────────┘                 │ webcam person │
+   (badge = QR on iPad screen)              │ detect → pres │
                                             └──────────────┘
 ```
 
@@ -75,7 +75,7 @@ The display surface and the electronics are decoupled and coordinate through Con
 | Backend / realtime | **Convex** | tables, queries, mutations, actions, httpAction, file storage (badge OG images), scheduler |
 | Email | GPT draft → **review queue** → Resend (send only after human approval, post-fair) | no auto-send |
 | Hardware compute | **Raspberry Pi 5** + Pi OS 64-bit | headless presence-sensing node + Python bridge |
-| Bridge libs | `gpiozero` (ultrasonic `DistanceSensor`) + `opencv-python`/MediaPipe (webcam person-detect) | presence fusion |
+| Bridge libs | `opencv-python` / MediaPipe (webcam person-detect) | presence |
 | Dev | **Cursor** (+ fiber.ai coding plugin) | sponsor; fiber ships an agent plugin + `llms.txt` |
 
 > Latency target for voice: **< 1.5s to first audio.** Stream Whisper partials, stream GPT tokens into ElevenLabs streaming TTS, use VAD for turn-taking, handle barge-in. If turn-taking still feels laggy in testing, OpenAI Realtime API is the drop-in fallback.
@@ -152,7 +152,7 @@ hwCommands: defineTable({ deviceId: v.string(), kind: v.string(), payload: v.any
   acked: v.boolean(), createdAt: v.number() }).index("by_device_unacked", ["deviceId","acked"]),
 
 presence: defineTable({ deviceId: v.string(), event: v.string(), // approach | leave
-  distanceCm: v.optional(v.number()), personSeen: v.optional(v.boolean()), ts: v.number() })
+  personSeen: v.optional(v.boolean()), ts: v.number() })
   .index("by_device", ["deviceId"]),
 ```
 
@@ -205,41 +205,31 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | # | Part | Suggested | Notes |
 |---|---|---|---|
 | 1 | Booth display | **iPad** (team's) | front face; runs the app + all audio + QR camera |
-| 2 | iPad stand | improvised from materials on hand | holds iPad + the two sensors aimed at the approach zone |
+| 2 | iPad stand | improvised from materials on hand | holds iPad + the webcam aimed at the approach zone |
 | 3 | Compute | **Raspberry Pi 5** + microSD | headless presence-sensing node |
-| 4 | Presence — proximity | **Ultrasonic HC-SR04** | distance/approach; ECHO needs a voltage divider (below) |
-| 5 | Presence — confirmation | **USB webcam** | confirms it's a *person* (OpenCV/MediaPipe), not an object/passerby |
-| 6 | Wiring | jumper wires (brought) + **2 resistors** (≈1kΩ + 2kΩ) for the ECHO divider | check the kit for resistors; no resistors → run webcam-only |
-| 7 | Power | Pi 5 USB-C (5V/5A); iPad charger | no LED/printer to power |
+| 4 | Presence + vision | **USB webcam** | detects a person at the booth (OpenCV/MediaPipe) |
+| 5 | Power | Pi 5 USB-C (5V/5A); iPad charger | webcam draws from USB; nothing else to power |
 
-> **What we are NOT using (not in the kit):** no LED ring (Pi 5's NeoPixel libs are unreliable anyway — "lead-quality" color is shown **on the iPad screen**), no thermal printer (badge is a **QR on the iPad**), no speaker (audio plays on the **iPad**). The brought USB mic is a backup; the iPad mic is primary.
+> **What we are NOT using:** no ultrasonic sensor (the webcam handles presence — fewer parts, no GPIO wiring), no LED ring (Pi 5's NeoPixel libs are unreliable anyway — "lead-quality" color is shown **on the iPad screen**), no thermal printer (badge is a **QR on the iPad**), no speaker (audio plays on the **iPad**). The brought USB mic is a backup; the iPad mic is primary.
 
-### 7.2 Wiring (Pi 5, BCM)
+### 7.2 Wiring
 
-| Signal | Pin | Notes |
-|---|---|---|
-| Ultrasonic TRIG | GPIO23 (out) | trigger pulse |
-| Ultrasonic ECHO | GPIO24 (in) **via divider** | ⚠️ ECHO is **5V** — drop to 3.3V with ≈1kΩ + 2kΩ divider or you can fry the pin |
-| Webcam | USB | OpenCV/MediaPipe person detection |
-
-`gpiozero.DistanceSensor(echo=24, trigger=23)`. No level shifters, LED, or printer to wire.
-
-> **Power rule:** use a proper Pi 5 USB-C supply (5V/5A); the webcam draws from USB. Keep the ultrasonic on the Pi's 5V rail with a common ground.
+**None.** The only peripheral is the **USB webcam** — plug-and-play, no GPIO, no soldering, no level shifters, no resistors. The whole physical build is "Pi 5 + a USB webcam on a stand."
 
 ### 7.3 CAD / enclosure
 
 **Form:** tabletop podium that **cradles the iPad** as the front face, tilted ~15°, weighted base.
 **Features (parametric, Fusion 360 / Onshape):**
 - iPad bezel/slot sized to the exact model, with cutouts for **front camera** (LinkedIn QR scan), speaker, and **charge cable**; retains the iPad securely but removable.
-- **Ultrasonic sensor + webcam** mounted facing the approach zone (a clean front aperture for each).
-- A tidy spot to tuck the Pi 5 + cabling; cable strain relief.
+- **Webcam** mounted facing the approach zone (a clean front aperture).
+- A tidy spot to tuck the Pi 5 + USB cabling; cable strain relief.
 **Manufacture:** split into bed-sized PLA parts (bezel, shell, base, rear panel); 0.2mm, 15–20% infill. **Start the longest print at hour 0.** Fallback: laser-cut acrylic / foamcore + vinyl + 3D-printed accents. The demo never blocks on the enclosure.
 **Deliverables:** STEP+STL in `/hardware/cad`, wiring diagram in `/hardware/wiring`, assembly photo in README.
 
 ### 7.4 Firmware / bridge (Pi)  *(owner: C)*
 `/firmware/bridge.py` (+ `boothpilot-bridge.service`):
-- **Presence fusion:** continuously read the ultrasonic distance AND run webcam person-detection. Fire `approach` when **a person is detected by the webcam AND** something is within ~1.5m on the ultrasonic (ultrasonic = fast/cheap proximity; webcam = confirms it's a human, killing false triggers from objects/passersby). Fire `leave` when both clear for ~5s. Debounce ~3s.
-- `POST {CONVEX_HTTP}/hw/presence {deviceId, event, distanceCm, personSeen}` (idempotent).
+- **Presence (webcam):** run webcam person-detection (OpenCV/MediaPipe). Fire `approach` when a person is detected in frame; fire `leave` when none for ~5s. Debounce ~3s. Tune detection size/zone so passersby in the aisle don't trigger it.
+- `POST {CONVEX_HTTP}/hw/presence {deviceId, event, personSeen}` (idempotent).
 - (No `hwCommands` actuators in this build — Pi does not render UI; the iPad is the screen.)
 
 ---
@@ -255,7 +245,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | LinkedIn QR | iPad (A) scans | `enrich` (B) | `sessions.linkedinUrl` |
 | Booth Badge | B generates (`sessions.badge` + OG image) | badge page (A/B), iPad QR, Pi print | `sessions.badge` |
 | `hwCommands` + `/hw/poll`,`/ack` | B enqueues | Pi (C) | `{kind,payload}` |
-| `presence` + `/hw/presence` | Pi (C) — ultrasonic+webcam fusion | iPad (A) | `{event, distanceCm, personSeen}` |
+| `presence` + `/hw/presence` | Pi (C) — webcam person-detect | iPad (A) | `{event, personSeen}` |
 | email review | B (draft) | dashboard reviewer (B) | `emailDraft`,`reviewStatus` |
 
 **Mocking:** each consumer seeds dummy Convex docs until the producer exists (A hand-writes `demoState` to build the demo view; C inserts an `hwCommands` row to test the LED; B stubs fiber with a canned payload). Shared Convex dev deployment makes this trivial.
@@ -273,8 +263,8 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 **DoD:** identification triggers live fiber enrichment onto a scored CRM card; a follow-up draft lands in the review queue; dashboard shows it all live.
 
 ### Builder C — Hardware & Integration
-**Owns:** Pi 5 presence-sensing node — **ultrasonic + webcam fusion** → `bridge.py` → `presence` · wiring (incl. the ECHO divider) · the physical stand · integration owner + **demo-reliability lead** (own hotspot, pre-seed, runbook, backup video).
-**DoD:** the booth senses a person at the booth (ultrasonic + webcam) and the iPad greets; everything runs reliably on our own hotspot with a tested fallback.
+**Owns:** Pi 5 presence-sensing node — **webcam person-detection** → `bridge.py` → `presence` · the physical stand · integration owner + **demo-reliability lead** (own hotspot, pre-seed, runbook, backup video).
+**DoD:** the booth senses a person at the booth (webcam) and the iPad greets; everything runs reliably on our own hotspot with a tested fallback.
 
 > **Load-balancing:** hardware has dead-time (prints/glue). When blocked, C is the integration glue (wires `/hw/*` with B, tests kiosk with A, runs reliability). Keep a thin slice each (recap page, seed script) that C can grab.
 
@@ -285,7 +275,7 @@ Convex action on `finalize_session`, each step logs an `events` row (visible "ag
 | Window | A (iPad/Voice) | B (Agent/Data) | C (Hardware/Integration) |
 |---|---|---|---|
 | **h0–2** | Xcode app skeleton, Convex client, mic capture → Whisper echo | Schema + **contracts locked (§8)**, fiber "hello" call, dashboard skeleton | Flash Pi, **start longest 3D print**, LED blinks from hand-inserted `hwCommands` |
-| **h2–4** | Whisper→GPT→ElevenLabs full loop (text in/out audible) | GPT tool-calling + `lookup_visitor`→fiber writes a card; `/hw/*` HTTP actions | ultrasonic + webcam fusion → `/hw/presence` |
+| **h2–4** | Whisper→GPT→ElevenLabs full loop (text in/out audible) | GPT tool-calling + `lookup_visitor`→fiber writes a card; `/hw/*` HTTP actions | webcam person-detect → `/hw/presence` |
 | **★ h4** | **End-to-end stub: talk → card enriched → demo view reacts. main demoable.** |
 | **h4–8** | LinkedIn QR scan; demo view driven by `demoState`; greet on presence | Confidence/urgency scoring; Booth Badge gen + OG image; email draft → review queue | LED color ← confidence; thermal QR mini-badge prints |
 | **h8–12** | Polish conversation UI, barge-in, transitions | Review-queue UI (approve/edit); fiber cost caps + caching | Mount iPad in enclosure (or fallback); cabling; 20-cycle burn-in |
