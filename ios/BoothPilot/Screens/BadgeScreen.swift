@@ -6,6 +6,7 @@ struct BadgeScreen: View {
     var onRestart: () -> Void = {}
     var live: BadgeDoc? = nil
     var liveName: String? = nil
+    var badgeURL: String = "https://boothpilot.dev/b/preview"
 
     private var visitorName: String { liveName ?? "Alex Rivera" }
     private var archetype: String { live?.archetype ?? "The Churn Slayer" }
@@ -75,7 +76,7 @@ struct BadgeScreen: View {
                     Text(visitorName).font(.serif(20, weight: 500)).foregroundColor(.ink)
                 }
                 Spacer()
-                QRCodeView(string: "https://boothpilot.dev/b/\(discountCode)")
+                QRCodeView(string: badgeURL)
                     .frame(width: 62, height: 62)
             }
             .padding(.top, 18)
@@ -135,7 +136,7 @@ struct BadgeScreen: View {
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.ink.opacity(0.1)))
 
             HStack(spacing: 14) {
-                ShareLink(item: URL(string: "https://boothpilot.dev/b/\(discountCode)")!) {
+                ShareLink(item: URL(string: badgeURL) ?? URL(string: "https://boothpilot.dev")!) {
                     Text("SHARE BADGE").font(.mono(15, weight: 500)).tracking(1).foregroundColor(.paper)
                         .frame(maxWidth: .infinity).padding(.vertical, 19)
                         .background(Capsule().fill(Color.ink))

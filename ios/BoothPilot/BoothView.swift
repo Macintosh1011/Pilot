@@ -38,8 +38,9 @@ struct BoothView: View {
         case .qr: QRScreen(onScan: { director.captureLinkedIn($0) })
         case .conversation: ConversationScreen(director: director)
         case .badge: BadgeScreen(onRestart: { director.goTo(.attract) },
-                                 live: director.backend?.badge,
-                                 liveName: director.backend?.visitorName)
+                                 live: director.backend.liveSession?.badge,
+                                 liveName: director.backend.liveSession?.visitorName,
+                                 badgeURL: director.badgeURL)
         }
     }
 }

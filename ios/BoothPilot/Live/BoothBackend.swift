@@ -3,7 +3,7 @@ import Combine
 import ConvexMobile
 
 // MARK: - Live documents (the subset of B2's Convex schema the iPad renders)
-// Field names + function paths mirror INTERFACES.md exactly — that doc is the locked contract.
+// Field names + function paths mirror INTERFACES.md / convex/schema.ts exactly — the locked contract.
 
 struct DemoStateDoc: Decodable {
     let view: String
@@ -14,14 +14,16 @@ struct PresenceDoc: Decodable {
     let event: String   // "approach" | "leave"
 }
 
-/// Badge stat. B2's schema stores `value` as `v.number()` → float64, so it decodes as Double.
+/// A badge stat. `value` is `v.number()` → a Convex float, so it MUST decode via `@ConvexFloat`
+/// (a bare `Double` throws on the `{"$float": …}` wire form → blank badge). See IOS_INTEGRATION_DESIGN §4.2.
 struct BadgeStat: Decodable {
     let label: String
-    let value: Double
+    @ConvexFloat var value: Double
+    enum CodingKeys: String, CodingKey { case label, value }
+    var intValue: Int { Int(value.rounded()) }
 }
 
-/// The public Booth Badge (lives under `sessions.badge`). `visitorName` is NOT here —
-/// it's a top-level session field, surfaced separately by the backend.
+/// The public Booth Badge (lives under `sessions.badge`).
 struct BadgeDoc: Decodable {
     let archetype: String
     let tagline: String
@@ -30,19 +32,23 @@ struct BadgeDoc: Decodable {
     let stats: [BadgeStat]
 }
 
-private struct SessionDoc: Decodable {
+/// The CRM card (`sessions.get`) — only the fields the iPad renders. `visitorName` is a
+/// top-level session field; the badge nests under it.
+struct BoothSession: Decodable {
+    let status: String?
     let visitorName: String?
+    let company: String?
     let badge: BadgeDoc?
 }
 
-// Action return shapes (INTERFACES.md §1.5 / §1.10). All fields optional so the decode
-// never throws — the badge/enrichment land on the card and arrive via the subscriptions.
+// Action return shapes (INTERFACES §1.5 / §1.10). All fields optional so the decode never
+// throws — the real results land on the card and arrive via the `liveSession` subscription.
 private struct LookupResult: Decodable { let ok: Bool?; let fiberMatch: String?; let source: String? }
-private struct FinalizeResult: Decodable { let ok: Bool?; let confidence: Double?; let badge: BadgeDoc?; let hasEmailDraft: Bool? }
+private struct FinalizeResult: Decodable { let ok: Bool?; let hasEmailDraft: Bool? }
 
-/// Convex function paths ("module:export"), verbatim from INTERFACES.md §1.
+/// Convex function paths ("module:export"), verbatim from INTERFACES §1.
 private enum Fn {
-    static let createSession = "sessions:create"      // mutation
+    static let createSession = "sessions:create"      // mutation → Id<"sessions">
     static let addMessage = "messages:add"            // mutation
     static let setNeeds = "sessions:setNeeds"         // mutation  (GPT set_needs)
     static let setDemoState = "demoState:setDemoState" // mutation  (GPT show_view)
@@ -50,68 +56,77 @@ private enum Fn {
     static let captureContact = "sessions:captureContact" // mutation (GPT capture_contact)
     static let lookupVisitor = "fiber:lookupVisitor"  // action    (GPT lookup_visitor)
     static let finalize = "finalize:finalize"         // action    (GPT finalize_session)
+    static let watchSession = "sessions:get"          // query
     static let watchDemoState = "demoState:bySession" // query
     static let watchPresence = "presence:latest"      // query
-    static let watchSession = "sessions:get"          // query
 }
 
-/// The realtime spine. Subscribes to presence / demoState / session badge and exposes the
-/// mutations + actions the voice loop calls as GPT tools. Nil unless a Convex URL is
-/// configured, so the booth runs fully offline without it. B1 owns `sessionId` and injects
-/// it into every call (the model never sees it — INTERFACES.md §0).
+/// The single observable backend service. Owns one `ConvexClient` for the app lifetime, the
+/// current `sessionId`, and the live `sessions.get` subscription that the Badge screen reads.
+///
+/// Driven **alongside** the scripted UX, never gating it: every method is fire-and-forget,
+/// guards `sessionId`, and swallows errors, so a slow/offline Convex degrades to the local
+/// script + mock badge with no stalls (IOS_INTEGRATION_DESIGN §6). B1 owns `sessionId` and
+/// injects it into every call — the model (Phase 2) never sees it.
 @MainActor
 final class BoothBackend: ObservableObject {
-    @Published var presenceEvent: String?
-    @Published var demoView: String?
-    @Published var demoHighlight: String?
-    @Published var badge: BadgeDoc?
-    @Published var visitorName: String?
+    @Published private(set) var liveSession: BoothSession?   // ← Badge screen reads this
     @Published private(set) var sessionId: String?
+    @Published var presenceEvent: String?                    // Phase 2 voice greet
+    @Published var demoView: String?                         // Phase 2 voice demo drive
+    @Published var demoHighlight: String?
 
     private let client: ConvexClient
-    private let deviceId: String
-    private var cancellables = Set<AnyCancellable>()
+    private var sessionCancellables = Set<AnyCancellable>()
+    private var presenceCancellable: AnyCancellable?
 
-    init?(deviceId: String) {
-        guard let url = Secrets.convexURL else { return nil }
-        client = ConvexClient(deploymentUrl: url.absoluteString)
-        self.deviceId = deviceId
+    init() {
+        client = ConvexClient(deploymentUrl: BoothConfig.convexURL)
     }
 
-    /// Watch for someone approaching this device (greet on "approach").
+    /// Watch for someone approaching this device (Phase 2 greet). Phase 1 doesn't use it.
     func startWatchingPresence() {
-        client.subscribe(to: Fn.watchPresence, with: ["deviceId": deviceId], yielding: PresenceDoc?.self)
+        presenceCancellable = client
+            .subscribe(to: Fn.watchPresence, with: ["deviceId": BoothConfig.deviceId], yielding: PresenceDoc?.self)
             .replaceError(with: nil)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.presenceEvent = $0?.event }
-            .store(in: &cancellables)
     }
 
-    private func watch(session id: String) {
+    private func subscribeToSession(_ id: String) {
+        client.subscribe(to: Fn.watchSession, with: ["sessionId": id], yielding: BoothSession?.self)
+            .replaceError(with: nil)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.liveSession = $0 }
+            .store(in: &sessionCancellables)
+
         client.subscribe(to: Fn.watchDemoState, with: ["sessionId": id], yielding: DemoStateDoc?.self)
             .replaceError(with: nil)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] doc in self?.demoView = doc?.view; self?.demoHighlight = doc?.highlight }
-            .store(in: &cancellables)
-
-        client.subscribe(to: Fn.watchSession, with: ["sessionId": id], yielding: SessionDoc?.self)
-            .replaceError(with: nil)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.badge = $0?.badge; self?.visitorName = $0?.visitorName }
-            .store(in: &cancellables)
+            .store(in: &sessionCancellables)
     }
 
-    // MARK: - Tool surface (called by the voice loop on GPT tool calls; sessionId injected here)
+    /// Drop the current session so the next visitor gets a fresh card.
+    func reset() {
+        sessionCancellables.removeAll()
+        sessionId = nil
+        liveSession = nil
+        demoView = nil
+        demoHighlight = nil
+    }
+
+    // MARK: - Tool surface (sessionId injected here; all fire-and-forget)
 
     func createSession() async {
         do {
-            let id: String = try await client.mutation(Fn.createSession, with: ["deviceId": deviceId])
+            let id: String = try await client.mutation(Fn.createSession, with: ["deviceId": BoothConfig.deviceId])
             sessionId = id
-            watch(session: id)
+            subscribeToSession(id)
         } catch { print("[Convex] createSession:", error) }
     }
 
-    /// Persist a transcript turn — scoring/badge/email read this as ground truth (INTERFACES.md §1.3).
+    /// Persist a transcript turn — scoring/badge/email read this as ground truth (INTERFACES §1.3).
     func addMessage(role: String, text: String) async {
         guard let id = sessionId, !text.isEmpty else { return }
         try? await client.mutation(Fn.addMessage, with: ["sessionId": id, "role": role, "text": text])
@@ -130,9 +145,11 @@ final class BoothBackend: ObservableObject {
         try? await client.mutation(Fn.setNeeds, with: args)
     }
 
-    func showView(_ view: String) async {
+    func showView(_ view: String, params: [String: ConvexEncodable?]? = nil) async {
         guard let id = sessionId else { return }
-        try? await client.mutation(Fn.setDemoState, with: ["sessionId": id, "view": view])
+        var args: [String: ConvexEncodable?] = ["sessionId": id, "view": view]
+        if let params { args["params"] = params }
+        try? await client.mutation(Fn.setDemoState, with: args)
     }
 
     func setHighlight(_ elementId: String) async {
@@ -160,6 +177,8 @@ final class BoothBackend: ObservableObject {
         let _: LookupResult? = try? await client.action(Fn.lookupVisitor, with: args)
     }
 
+    /// Score → badge → email draft. Returns a preview immediately; the real Codex badge lands
+    /// async on the card and arrives via `liveSession`. Never render from this return.
     func finalize() async {
         guard let id = sessionId else { return }
         let _: FinalizeResult? = try? await client.action(Fn.finalize, with: ["sessionId": id])

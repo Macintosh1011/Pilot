@@ -40,6 +40,10 @@ targets:
       properties:
         CFBundleDisplayName: BoothPilot
         CFBundleName: BoothPilot
+        # Backend wiring (non-secret; overridable per-device via `defaults write dev.parkt.boothpilot <key> …`)
+        BoothConvexURL: https://jovial-wildebeest-931.convex.cloud
+        BoothDashboardURL: https://localhost:3000   # point at the DEPLOYED dashboard for an off-device scannable badge QR
+        BoothDeviceId: ipad-1
         UILaunchScreen:
           UIColorName: LaunchBackground
         UIRequiresFullScreen: true

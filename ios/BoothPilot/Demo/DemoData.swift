@@ -76,30 +76,32 @@ final class Director: ObservableObject {
     @Published var badgeKey = 1
     @Published var linkedInURL: String?
 
-    let backend: BoothBackend?
+    /// One Convex client for the app lifetime. Always present (real deployment URL baked into
+    /// `BoothConfig`); its calls no-op cleanly when offline, so the booth never stalls.
+    let backend = BoothBackend()
+    /// Phase 2 voice loop — nil unless an OpenAI key is configured. `nil` ⇒ scripted Phase 1.
     let voice: RealtimeVoice?
     private var cancellables = Set<AnyCancellable>()
     private var transition: DispatchWorkItem?
     private var beatTimer: Timer?
 
-    /// Full live experience needs both the Convex spine and the voice loop.
-    var live: Bool { backend != nil && voice != nil }
+    /// Live voice experience (Phase 2). Phase 1 (no key) runs the scripted UX + live backend.
+    var live: Bool { voice != nil }
 
     init() {
-        backend = BoothBackend(deviceId: Secrets.deviceId)
         voice = RealtimeVoice(backend: backend)
+        // Republish backend changes so the Badge screen re-renders when the live card arrives.
+        backend.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
         if live {
-            backend?.startWatchingPresence()
+            backend.startWatchingPresence()
             observeLive()
         }
         applyLaunchScreen()
     }
 
     private func observeLive() {
-        guard let backend, let voice else { return }
-        // re-publish nested service changes so the conversation view updates
+        guard let voice else { return }
         voice.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
-        backend.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
 
         backend.$presenceEvent.compactMap { $0 }.receive(on: RunLoop.main).sink { [weak self] event in
             guard let self else { return }
@@ -110,13 +112,19 @@ final class Director: ObservableObject {
         voice.$finalized.filter { $0 }.receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.goTo(.badge) }.store(in: &cancellables)
 
-        backend.$badge.compactMap { $0 }.receive(on: RunLoop.main)
+        backend.$liveSession.compactMap { $0?.badge }.receive(on: RunLoop.main)
             .sink { [weak self] _ in if self?.screen != .badge { self?.goTo(.badge) } }.store(in: &cancellables)
     }
 
     /// Dev: `simctl launch … -screen badge [-beat 6]` boots straight into a frozen screen.
+    /// `-autostart` instead runs the full scripted flow from attract (greet → … → badge) hands-free,
+    /// useful for a headless demo loop or verifying the live backend drive end to end.
     private func applyLaunchScreen() {
         let args = ProcessInfo.processInfo.arguments
+        if args.contains("-autostart") {
+            DispatchQueue.main.async { self.goTo(.greeting) }
+            return
+        }
         guard let i = args.firstIndex(of: "-screen"), i + 1 < args.count else { return }
         let map: [String: Screen] = [
             "attract": .attract, "greeting": .greeting, "conversation": .conversation,
@@ -147,12 +155,19 @@ final class Director: ObservableObject {
         live && screen == .conversation ? (voice?.transcript ?? "") : current.line
     }
     var displayStage: Int {
-        live && screen == .conversation ? Demo.stage(forView: backend?.demoView) : stage
+        live && screen == .conversation ? Demo.stage(forView: backend.demoView) : stage
     }
     var displayStep: Int {
         guard live, screen == .conversation else { return stepIndex }
-        let s = Demo.stage(forView: backend?.demoView)
+        let s = Demo.stage(forView: backend.demoView)
         return s == 0 ? 1 : min(s + 1, 3)
+    }
+
+    /// The Booth Badge QR / share target — the live dashboard badge page for this session.
+    var badgeURL: String {
+        let base = BoothConfig.dashboardURL
+        if let id = backend.sessionId { return "\(base)/badge/\(id)" }
+        return "\(base)/badge/preview"
     }
 
     private var spark: SparkMode {
@@ -169,6 +184,7 @@ final class Director: ObservableObject {
     func goTo(_ s: Screen) {
         cancelAll()
         if s == .attract || s == .badge { voice?.stop() }
+        if s == .attract { backend.reset() }   // fresh card for the next visitor
         screen = s
         if s == .conversation { beat = 0 }
         if s == .badge { badgeKey += 1 }
@@ -183,7 +199,7 @@ final class Director: ObservableObject {
         case .greeting: goTo(.qr)
         case .qr: goTo(.conversation)
         case .conversation:
-            if beat < lastBeat { setBeat(beat + 1) } else { goTo(.badge) }
+            if beat < lastBeat { goToBeat(beat + 1); restartBeatTimer() } else { goTo(.badge) }
         case .badge: goTo(.attract)
         }
     }
@@ -191,20 +207,15 @@ final class Director: ObservableObject {
     /// A scanned LinkedIn QR — enrich straight off the profile (INTERFACES.md §1.5).
     func captureLinkedIn(_ url: String) {
         linkedInURL = url
-        if live { Task { await backend?.lookupVisitor(linkedinUrl: url) } }
+        Task { await backend.lookupVisitor(linkedinUrl: url) }
         goTo(.conversation)
-    }
-
-    private func setBeat(_ i: Int) {
-        beat = max(0, min(lastBeat, i))
-        restartBeatTimer()
     }
 
     private func schedule(for s: Screen) {
         if live {
             switch s {
             case .greeting:
-                Task { await backend?.createSession() }
+                Task { await backend.createSession() }
                 after(2.5) { self.goTo(.conversation) }
             case .conversation: voice?.start()
             default: break // attract waits for presence; badge stays until leave/new approach
@@ -214,7 +225,9 @@ final class Director: ObservableObject {
         switch s {
         case .greeting: after(6.0) { self.goTo(.qr) }
         case .qr: after(5.5) { self.goTo(.conversation) }
-        case .conversation: restartBeatTimer()
+        case .conversation:
+            restartBeatTimer()
+            driveConversationBackend()
         case .badge: after(30) { self.goTo(.attract) }
         case .attract: break
         }
@@ -229,8 +242,57 @@ final class Director: ObservableObject {
                     self.beatTimer?.invalidate()
                     self.after(4.6) { self.goTo(.badge) }
                 } else {
-                    self.beat += 1
+                    self.goToBeat(self.beat + 1)
                 }
+            }
+        }
+    }
+
+    private func goToBeat(_ i: Int) {
+        beat = max(0, min(lastBeat, i))
+        fireBeatHooks(beat)
+    }
+
+    // MARK: - Drive the real Convex backend alongside the scripted beats (IOS_INTEGRATION_DESIGN §5)
+
+    /// Kick the session at conversation start with a concrete sample identity (no live QR in the
+    /// scripted run), consistent with the seed hero so the dashboard shows a coherent verified card.
+    private func driveConversationBackend() {
+        Task {
+            await backend.createSession()
+            await backend.lookupVisitor(name: "Maya Chen", company: "Northwind Labs",
+                                        linkedinUrl: "https://www.linkedin.com/in/maya-chen-product", reveal: false)
+            fireBeatHooks(0)
+        }
+    }
+
+    /// Fire-and-forget the backend calls a beat maps to — the transcript turn plus the matching
+    /// needs / demo view / contact / finalize. The screen still advances on its own timer (§6).
+    private func fireBeatHooks(_ n: Int) {
+        let b = Demo.beats[n]
+        let text = b.line.replacingOccurrences(of: "*", with: "")
+        let role = b.speaker == "VISITOR" ? "visitor" : "assistant"
+        Task {
+            await backend.addMessage(role: role, text: text)
+            switch n {
+            case 0:
+                await backend.setNeeds(problems: ["churn / retention", "growth stalling"],
+                                       useCase: "reduce churn and protect growth",
+                                       urgency: "high", urgencyEvidence: "churn is quietly killing our growth")
+            case 2:
+                await backend.showView("churn", params: ["period": "30d"])
+            case 3:
+                await backend.setHighlight("at-risk-accounts")
+            case 4:
+                await backend.setNeeds(problems: ["churn / retention", "wants proactive churn alerts"],
+                                       useCase: "get pinged before accounts churn", urgency: "high")
+            case 5:
+                await backend.showView("alerts", params: ["severity": "high"])
+                await backend.captureContact(linkedinUrl: "https://www.linkedin.com/in/maya-chen-product")
+            case 6:
+                await backend.finalize()
+            default:
+                break
             }
         }
     }
