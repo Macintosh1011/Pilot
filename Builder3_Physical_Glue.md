@@ -1,4 +1,4 @@
-# Builder 3 — Physical + Glue (Hardware, Sensing & Integration Lead)
+# Builder 3 — Booth, Demo Product & Reliability
 
 > Your home doc. Everything you need is here; the full spec is `BoothPilot_Engineering_Spec.md`.
 
@@ -8,127 +8,85 @@
 
 **BoothPilot** is an interactive AI booth. A visitor walks up; the booth talks to them, researches them live (fiber.ai), demos our product to *their* use case, gives them a shareable personalized **badge**, and hands the company a review-ready CRM card + a drafted follow-up.
 
-**The 8-step loop:**
-1. Visitor approaches → AI greets and starts talking.
-2. Voice: **Whisper (STT) → GPT (conversation + tools) → ElevenLabs (TTS)**.
-3. Ask name + company (or scan their **LinkedIn QR**) → research via **fiber.ai** → build a CRM card.
-4. Scope problems; write urgency + confidence onto the card.
-5. **Live demo** of how the product solves their problem.
-6. Capture contact.
-7. **Booth Badge** — archetype + grounded compliment + stat bars + discount, via QR.
-8. GPT **drafts a follow-up email** → human-review queue (no auto-send).
+**The 8-step loop:** approach → voice (Whisper→GPT→ElevenLabs) → identify + research via **fiber.ai** → scope needs (urgency + confidence) → **live demo** → capture contact → shareable **Booth Badge** (QR) → GPT **drafts a follow-up** for human review after the fair.
 
-**Event:** AI Growth Hackathon (Orange Slice × YC). 24h, kickoff Sat 5pm, **judging Sun 5pm**. Repo **public on GitHub**. Sponsors to name: **OpenAI, Convex, Cursor, fiber.ai, ElevenLabs**.
+**Event:** AI Growth Hackathon (Orange Slice × YC). 24h, judging Sun 5pm. Repo **public on GitHub**. Sponsors to name: **OpenAI, Convex, Cursor, fiber.ai, ElevenLabs**.
 
-**Architecture — three roles, one nervous system:**
-- **iPad = experience node (Builder 1).** UI, voice, QR, demo view, badge.
-- **Pi 5 = on-device engagement engine (you).** Local face/engagement model → greet + keep the visitor engaged. No screen on the Pi.
-- **Convex = the spine (Builder 2 owns it).** Everyone reads/writes Convex; the iPad and Pi never talk directly.
+**Architecture — iPad-first, Convex spine (NO Raspberry Pi):**
+- **iPad (Builder 1)** = the whole experience: UI, voice, **face/engagement via TrueDepth**, QR, demo view, badge.
+- **Convex (Builder 2)** = the spine: CRM, scoring, fiber, badge data, dashboard.
+- **The booth** = a **3D-printed enclosure (you)** housing the iPad — the physical artifact, no electronics.
 
-**THE key design rule:** the demo is **shared state, not browser automation** (`demoState` in Convex). Good to know; not your area.
+**THE key design rule:** the live demo is **shared state, not browser automation** — the agent writes `demoState` in Convex and the demo product re-renders. **You build that demo product**, so this rule is yours to deliver.
 
-**Team map:** B1 = front of house · B2 = brain · B3 (you) = physical + **integration/reliability lead**.
-
-**Checkpoints:** ★**h4** end-to-end stub (incl. greet-on-approach) · ★**h12** full loop. `main` stays demoable.
-
----
-
-## Hardware reality — what we actually brought
-
-Pi 5 · keyboard/mouse · **webcam** · mic · wires · (iPad from Builder 1). *(We also have an ultrasonic sensor on hand but are NOT using it — the webcam + local model handle face detection & engagement.)*
-**Not brought:** LED ring, thermal printer, speaker, monitor.
-
-What that means:
-- **Audio lives on the iPad** (its mic + speaker). The Pi has **no audio jack** (Pi 5 removed it) and we have no speaker.
-- **"Lead-quality color" is shown on the iPad screen**, not a physical LED. (Also: **Pi 5 broke the old NeoPixel libraries** via the new RP1 chip — don't count on `rpi_ws281x` even if we grab a strip.)
-- **Badge is a QR on screen** — no printer needed.
-- **The Pi's job = run a local face/engagement model on-device and stream engagement signals to Convex.** This is a real **edge-AI node** — the booth's "eyes." It senses presence AND how engaged the visitor is, so the AI can greet them, re-hook them when they drift, and wrap up when they leave. You're **also the integration + reliability lead** (the most important role on demo day).
+**Checkpoints:** ★**h4** end-to-end stub (talk → demo product reacts) · ★**h12** full loop + booth + badge. `main` stays demoable.
 
 ---
 
 ## Your role
 
-You own **the physical node and making the whole thing not break.**
+The Pi is gone — the iPad does everything it used to. Your job is the three things judges actually **see and touch**, plus making the demo bulletproof:
 
 ### What you own
-- **Pi 5 setup** (headless, on our hotspot, SSH/kbd-mouse for setup).
-- **The local engagement model** → a face/engagement model running **on the Pi** (MediaPipe Face Landmarker: face detection + head pose/gaze + expression). Emits presence + attention + engagement state.
-- **`bridge.py`** — runs the model on the webcam feed → posts `engagement` signals to Convex.
-- **Physical build** — a stand/enclosure for the iPad + Pi + webcam from whatever we have (cardboard/foamcore is fine).
-- **Integration owner + demo-reliability lead** — own the hotspot, seed data with B2, the runbook, the pre-demo checklist, and the backup video.
+1. **The 3D-printed booth enclosure** — CAD → print → assembly (houses the iPad Pro 12.9″ 5th gen). Spec: `BoothPilot_CAD_Prompt.md`. This is the physical artifact.
+2. **The demo-target product** — "Acme Analytics", a clean web app the agent drives via `demoState` (the "it's demoing *my* use case" wow). Hosted inside Builder 1's WKWebView.
+3. **The Booth Badge page** — the collectible card that renders `sessions.badge` (archetype + compliment + stat bars + discount + QR), with the OG share image.
+4. **Integration owner + demo-reliability lead** — the hotspot, golden seed sessions, the offline/degraded fallback, the runbook, the pre-demo checklist, and the backup video. *You own demo day not breaking.*
 
 ### Definition of done
-The Pi detects a person and their attention/engagement **on-device** and streams it live; the iPad greets on approach, re-hooks a wavering visitor, and wraps up when they leave — and the full demo runs reliably on our hotspot with a tested fallback (and a recorded backup video).
+The iPad sits in a finished printed booth; the agent visibly drives the demo product on the visitor's use case; the badge renders beautifully; and the whole demo runs reliably on our hotspot with a tested fallback.
 
 ---
 
 ## Interfaces (your seams)
 
-| You do | Mechanism |
+| You build | Mechanism |
 |---|---|
-| Stream engagement | `POST {CONVEX_HTTP}/hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}` — `event` = approach \| update \| leave (B2 provides the endpoint) |
-| Consumers | Builder 1's iPad subscribes to the `engagement` query (greet/re-hook/wrap); Builder 2 folds it into the confidence score + a dashboard readout |
+| Demo product | a web app (cream/ink/clay, on-brand) that **subscribes to `demoState`** (Convex) and re-renders: views `home/churn/alerts/pricing/query-result`. B2's GPT tools write `demoState`; B1 hosts your app in the WebView. |
+| Badge page | `/badge/[sessionId]` renders `sessions.badge` (B2 generates the data) + share + OG image. |
+| Reliability | own the hotspot; with B2 seed 2–3 **golden sessions**; build a **cached/degraded fallback** so a network blip never stalls the demo. |
 
-**Mock while B2 builds the endpoint:** write rows directly into the `engagement` table from a script to prove the iPad greets and re-hooks.
+**Mock while B2 builds the agent:** hand-write a `demoState` doc in the Convex dashboard so you can build + style the demo product before the agent exists. Same for `sessions.badge` to build the badge page.
 
 ---
 
-## The local engagement model (the Pi's brain)
-
-Run a **local vision model on the Pi** over the webcam feed — no GPIO, no wiring, no cloud. Everything is on-device; no frames are stored or sent, only the derived signals.
-
-**Model:** **MediaPipe Face Landmarker** is the sweet spot on a Pi 5 — one model gives you:
-- **face detection** → presence + `faceCount` (solo vs group),
-- **head pose / gaze** → `attention` (are they looking at the booth/screen?),
-- **expression blendshapes** → `expression` (interested / confused / neutral).
-Fallbacks: OpenCV DNN face detector + a simple gaze heuristic. Optional accelerator: the **Raspberry Pi AI Kit (Hailo-8L)** if you can get one.
-
-**Derive an engagement `state`:** combine attention + expression + dwell into `engaged | wavering | disengaged`.
-
-**Logic (in `bridge.py`):**
-- `approach` when a face appears (debounced ~3s; tune the zone/face-size so aisle passersby don't trigger it).
-- periodic `update`s (~1–2s) with `attention` / `state` / `expression` / `faceCount` / `dwellMs`.
-- `leave` when the face is gone ~5s.
-- **Build the model first, signals second:** get face-presence → `approach`/`leave` working at h0–2 (that alone powers the greet); layer in gaze/expression/state after. Keep it real-time (~10+ fps); downscale frames if needed.
+## The demo product (your hero deliverable)
+Keep it **on-brand** (warm paper, ink, clay — see `BoothPilot_iPad_Design_Prompt.md`) and **reactive**: every change to `demoState` re-renders in <100ms with a calm transition. Views to ship:
+- `home` (overview), `churn` (at-risk-accounts board on sample fintech data, configurable window), `alerts` (toggle), `pricing`/`integrations` (for buyer/engineer personas), `query-result` (a parameterized canned answer).
+- Local sample data only — the **only** control surface is `demoState`. That's what makes the live demo bulletproof (no Playwright, nothing to break).
 
 ---
 
 ## Task list
-- [ ] Image Pi 5, put it on **our hotspot** (not venue WiFi), enable SSH.
-- [ ] Plug in the USB webcam; get the **local model (MediaPipe Face Landmarker)** running on the Pi at ~10+ fps.
-- [ ] `bridge.py`: model → derive `approach`/`update`/`leave` + attention/state/expression → debounce → `POST /hw/engagement`. Run as a `systemd` service that waits for network.
-- [ ] Confirm Builder 1's iPad greets on approach AND re-hooks when `state` drops (end-to-end).
-- [ ] Build the physical stand for iPad + Pi + webcam (cable management, webcam aimed at the approach zone).
-- [ ] **Own the hotspot**: get iPad + Pi + dashboard laptop all on it.
-- [ ] With B2: seed 2–3 **golden sessions** for fallback.
-- [ ] Write the **demo runbook** + the pre-demo checklist.
-- [ ] Record a **backup video** of a flawless run.
+- [ ] **Start the enclosure print at h0** (longest part first); model in CAD (see CAD prompt) or iterate on a base design.
+- [ ] Scaffold the demo product reactive to a hand-seeded `demoState`; build the core views.
+- [ ] Build the Booth Badge page rendering `sessions.badge` + OG image.
+- [ ] **Own the hotspot**; get iPad + dashboard laptop on it.
+- [ ] With B2: seed 2–3 golden sessions; build the cached/degraded fallback.
+- [ ] Mount the iPad in the printed booth; finish + photograph it for the README.
+- [ ] Write the runbook + pre-demo checklist; record a backup video.
 
 ## Your hour-by-hour
-- **h0–2:** Pi imaged + on hotspot; local model running, face presence → `approach`/`leave` → `engagement`→Convex.
-- **h2–4:** iPad greets on approach. → **★h4 stub demo (with greet)**.
-- **h4–8:** layer in attention/gaze + expression + `state`; tune the zone; build the stand; help B1 with audio reliability.
-- **h8–12:** integration pass; own-hotspot end-to-end test; **start the backup video**. → **★h12**.
-- **h12–17:** reliability hardening, spares, finalize runbook + checklist.
-- **h17→judging:** set up booth, pre-warm, dry-run the runbook, charge iPad + Pi.
+- **h0–2:** start the enclosure print; demo product scaffold reactive to a hand-seeded `demoState`.
+- **h2–4:** demo product core views (home/churn/alerts); hotspot up. → **★h4 stub demo**.
+- **h4–8:** finish demo product; build the **Booth Badge page**; enclosure assembly.
+- **h8–12:** mount iPad in the booth; golden seed sessions; offline/degraded fallback. → **★h12**.
+- **h12–17:** reliability pass, runbook, spares.
+- **h17→judging:** finish the booth, backup video, set up + pre-warm, dry-run the runbook.
 
 ## Gotchas (yours)
-- **Tune the model's detection zone** (face size/position) so aisle passersby don't trigger false greetings; watch out for harsh conference lighting/backlight.
-- **Keep it real-time** — downscale frames, cap the model to what runs ~10+ fps on the Pi 5; don't over-reach on expression accuracy.
-- **Venue WiFi is the #1 demo killer — run everything on our own hotspot.** Pre-join the SSID on the Pi so it auto-reconnects on boot. (The model runs on-device, so it works even if the network drops.)
-- **Debounce `approach`** (~3s) and rate-limit `update`s (~1–2s) so you don't flood Convex or fire 20 greetings.
-- **Privacy:** on-device only — no frames stored or sent, just the derived signals. Say this in the pitch; it's a strength.
-- Pi 5: no audio jack, NeoPixel libs unreliable — don't plan around either.
-- Keep your hardware scope small on purpose; your highest-value job is **integration + reliability**, not gadgets.
+- **Start the print at h0** — the iPad frame is ~281mm wide, so it splits into parts and prints for hours. Foamcore is the fallback; the demo never blocks on the enclosure.
+- **Keep the demo product on-brand and calm** — judges see this on the big half of the screen; janky transitions read as unfinished.
+- **`demoState` is the contract with B2** — agree the `view`/`params` names in hour one so the agent's tools line up with your views.
+- **You're the reliability lead** — own the hotspot, the golden sessions, and the backup video. Under pressure you're the one who calmly switches to a golden session.
 
 ## Pre-demo checklist (you run this 5 min before)
-- [ ] iPad in Guided Access, on our hotspot
-- [ ] Pi bridge running; walk-up fires a greet
-- [ ] Dashboard live on the second screen
-- [ ] OpenAI / ElevenLabs / fiber pre-warmed (one throwaway run)
-- [ ] Golden sessions loaded
-- [ ] Backup video queued
+- [ ] iPad in Guided Access, on our hotspot, seated in the booth
+- [ ] Demo product + badge page render correctly
+- [ ] A TrueDepth walk-up fires the greet (B1)
+- [ ] Dashboard/review queue live; golden sessions loaded
+- [ ] Cloud APIs + fiber pre-warmed; backup video queued
 - [ ] Repo public; talk track names all sponsors
 
 ## Demo-day role
-You're **mission control**: own the setup, the hotspot, and the fallback. If anything wobbles, you're the one who calmly switches to the golden session or the backup video. You also do the physical "watch — it greets me when I walk up" beat.
+You're **mission control**: own the booth setup, the hotspot, and the fallback. The demo product the judge watches is yours; if anything wobbles, you calmly switch to a golden session or the backup video.

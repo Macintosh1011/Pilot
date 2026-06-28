@@ -7,6 +7,7 @@ struct BadgeScreen: View {
     var live: BadgeDoc? = nil
     var liveName: String? = nil
     var badgeURL: String = "https://boothpilot.dev/b/preview"
+    var isLive: Bool = false
 
     private var visitorName: String { liveName ?? "Alex Rivera" }
     private var archetype: String { live?.archetype ?? "The Churn Slayer" }
@@ -26,20 +27,49 @@ struct BadgeScreen: View {
     }
 
     @State private var grow = false
+    @State private var badgeHasArrived = false
 
     private var firstName: String { visitorName.split(separator: " ").first.map(String.init) ?? visitorName }
 
     var body: some View {
-        HStack(spacing: 58) {
-            bookplate
-            sidePanel
+        ZStack {
+            if isLive && !badgeHasArrived {
+                loadingView
+            } else {
+                HStack(spacing: 58) {
+                    bookplate
+                    sidePanel
+                }
+                .padding(56)
+                .frame(width: 1374, height: 1030)
+            }
         }
-        .padding(56)
         .frame(width: 1374, height: 1030)
+        .animation(.easeInOut(duration: 0.55), value: badgeHasArrived)
         .onAppear {
-            grow = false
-            withAnimation(.easeOut(duration: 0.9).delay(1.9)) { grow = true }
+            badgeHasArrived = live != nil || !isLive
+            if badgeHasArrived {
+                grow = false
+                withAnimation(.easeOut(duration: 0.9).delay(1.9)) { grow = true }
+            }
         }
+        .onChange(of: live == nil) { _, isNil in
+            guard !isNil, isLive else { return }
+            badgeHasArrived = true
+            grow = false
+            // Delay slightly to let the cross-fade finish before the bars animate in.
+            withAnimation(.easeOut(duration: 0.9).delay(0.65)) { grow = true }
+        }
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: 22) {
+            Spark(mode: .thinking).frame(width: 96, height: 96)
+            Text("Crafting your booth badge…")
+                .font(.serif(26, italic: true))
+                .foregroundColor(.muted)
+        }
+        .frame(width: 1374, height: 1030)
     }
 
     // MARK: Bookplate card

@@ -44,6 +44,21 @@ export const get = query({
   },
 });
 
+// Public badge page: returns only visitor-safe fields. No scoring, no contact, no fiber.
+export const badgePublic = query({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session) return null;
+    return {
+      _id: session._id,
+      visitorName: session.visitorName,
+      company: session.company,
+      badge: session.badge,
+    };
+  },
+});
+
 // GPT tool: set_needs -> writes problems / useCase / urgency onto the card
 export const setNeeds = mutation({
   args: {

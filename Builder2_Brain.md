@@ -22,14 +22,14 @@
 
 **Architecture — three roles, one nervous system:**
 - **iPad = experience node (Builder 1).** UI, voice, QR, demo view, badge.
-- **Pi 5 = on-device engagement engine (Builder 3).** Local face/engagement model → `engagement` signals (you fold these into the score + dashboard).
+- **No Raspberry Pi.** The **iPad** does face/engagement (TrueDepth) and writes `engagement` — you fold it into the score + dashboard. **Builder 3** owns the booth enclosure + the demo product + the badge page + reliability.
 - **Convex = the spine (you own it).** Everyone reads/writes Convex.
 
 **THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes `demoState`; the iPad's demo view re-renders from it. You define the tools and the state shape.
 
-**Hardware reality:** Pi 5, kbd/mouse, webcam, mic, wires, iPad. No LED/printer/speaker — audio on iPad, "lead quality" shown on screen, badge is a QR. The Pi runs a local face/engagement model and streams `engagement` signals you consume. (Mostly software for you.)
+**Hardware reality:** just the **iPad** + a 3D-printed booth. No Pi, no webcam, no sensors. The iPad produces `engagement` (TrueDepth); you consume it. (All software for you.)
 
-**Team map:** B1 = front of house · B2 (you) = brain · B3 = physical + integration/reliability lead.
+**Team map:** B1 = front of house · B2 (you) = brain · B3 = booth enclosure + demo product + badge page + reliability.
 
 **Checkpoints:** ★**h4** end-to-end stub · ★**h12** full loop + badge. `main` stays demoable.
 
@@ -40,7 +40,7 @@
 You own **the intelligence and the company-facing surface.** You're the center the other two integrate against — so **lock the Convex schema + the tool/function signatures in hour one** (see Interfaces). After that everyone can move in parallel.
 
 ### What you own
-- **Convex**: schema, all mutations/queries/actions, HTTP actions for the Pi.
+- **Convex**: schema, all mutations/queries/actions.
 - **GPT orchestration**: system prompt + tool/function definitions; the functions B1 calls.
 - **fiber.ai integration**: company + people search, work email/phone reveal, LinkedIn snapshot.
 - **Scoring**: confidence (0–100) + reasons, urgency + evidence.
@@ -55,9 +55,9 @@ Identifying a visitor fires live fiber enrichment onto a scored CRM card; finali
 
 ## Interfaces (your seams — define these first)
 
-You **provide** functions B1 calls + HTTP actions B3 calls.
+You **provide** the functions B1 (iPad) and C (demo product / badge page) build against.
 
-**Convex tables (lock these):** `sessions` (= the CRM card), `messages`, `demoState`, `events`, `engagement`. (Full field list in spec §5.)
+**Convex tables (lock these):** `sessions` (= the CRM card), `messages`, `demoState` (your GPT tools write it, C's demo product renders it), `events`, `engagement` (written by the **iPad**). (Full field list in spec §5.)
 
 **Functions you expose to B1 (the GPT tool targets):**
 | Function | Type | Does |
@@ -69,9 +69,9 @@ You **provide** functions B1 calls + HTTP actions B3 calls.
 | `captureContact({email,phone,linkedinUrl})` | mutation | writes card |
 | `finalize(sessionId)` | action | scoring → badge → email draft |
 
-**HTTP action you expose to B3 (the Pi):** `POST /hw/engagement {deviceId, event, attention, state, expression, faceCount, dwellMs}` (B3's local model writes the `engagement` table the iPad subscribes to and you fold into scoring/dashboard). No other Pi endpoints needed (no actuators).
+**Engagement source:** the **iPad** writes the `engagement` table directly (TrueDepth/Vision) — you consume it for scoring + a dashboard readout. No hardware endpoints; there's no Pi.
 
-**Mock while teammates build:** seed dummy `sessions`/`demoState` so B1 can build UI and B3 can post `engagement` rows before your pipeline is done. Stub fiber with a canned payload until the key works.
+**Mock while teammates build:** seed dummy `sessions`/`demoState` so B1/C can build UI and post `engagement` rows before your pipeline is done. Stub fiber with a canned payload until the key works.
 
 ---
 
@@ -87,7 +87,7 @@ Agent-native B2B data: search companies/people, reveal work email/phone, live Li
 ---
 
 ## Scoring + Badge specs
-- **Confidence (0–100)** via structured output, weighting: ICP/fiber fit 30 · intent language 25 · engagement 20 (from the Pi's `engagement` signal — attention + dwell) · authority 15 · demo depth 10. Always return 2–4 plain-English reasons. **Never shown to the visitor.**
+- **Confidence (0–100)** via structured output, weighting: ICP/fiber fit 30 · intent language 25 · engagement 20 (from the iPad's `engagement` signal — attention + dwell) · authority 15 · demo depth 10. Always return 2–4 plain-English reasons. **Never shown to the visitor.**
 - **Urgency** from transcript cues + an evidence quote.
 - **Badge** (structured output): `archetype` + `tagline` + a **grounded compliment that quotes a real detail from the transcript** + 2–3 flattering `stats` (a public mirror of the score) + `discountCode`. Tone: witty, niche, **never saccharine or backhanded**. Render a dynamic **OG image** (satori/`@vercel/og`-style) → Convex file storage.
 
@@ -102,7 +102,7 @@ Agent-native B2B data: search companies/people, reveal work email/phone, live Li
 - [ ] `events` logging at each step (powers the "agent thinking" timeline).
 - [ ] Dashboard: CRM cards sorted by confidence; agent timeline.
 - [ ] **Review queue**: approve/edit/discard; Resend send gated on approval.
-- [ ] HTTP action `/hw/engagement` (+ write the `engagement` table); surface a live engagement readout on the dashboard.
+- [ ] Consume the iPad-written `engagement` table; surface a live engagement readout on the dashboard.
 - [ ] Seed "golden" sessions for demo fallback.
 
 ## Your hour-by-hour

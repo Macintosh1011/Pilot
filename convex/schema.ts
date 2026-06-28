@@ -22,6 +22,10 @@ export default defineSchema({
     linkedinUrl: v.optional(v.string()),
     email: v.optional(v.string()), // from fiber reveal or asked
     phone: v.optional(v.string()),
+    // booth photo (the "funny pose" for the CRM card + printed badge)
+    visitorPhotoId: v.optional(v.id("_storage")),
+    visitorPhotoUrl: v.optional(v.string()), // resolved storage URL, for the dashboard + badge
+    photoRequestedAt: v.optional(v.number()), // agent asks for a pose → iPad snaps + uploads
     // fiber enrichment
     fiber: v.optional(v.any()), // firmographics + person payload (normalized)
     fiberMatch: v.optional(v.string()), // "verified" | "mismatch" | "none"
@@ -53,6 +57,8 @@ export default defineSchema({
     ),
     reviewStatus: v.optional(v.string()), // pending | approved | edited | sent | discarded
     sentAt: v.optional(v.number()),
+    // stateful voice: OpenAI Responses API conversation chain id (server-side state)
+    lastResponseId: v.optional(v.string()),
     // viral-loop hook (unused in baseline, here to avoid a later migration)
     referrerSessionId: v.optional(v.id("sessions")),
     createdAt: v.number(),

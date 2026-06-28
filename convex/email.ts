@@ -65,7 +65,7 @@ export const discard = mutation({
 export const send = action({
   args: { sessionId: v.id("sessions") },
   returns: sendResultValidator,
-  handler: async (ctx, { sessionId }): Promise<{ ok: boolean; error?: string }> => {
+  handler: async (ctx, { sessionId }): Promise<{ ok: true; error?: string } | { ok: false; error: string }> => {
     const session = await ctx.runQuery(internal.sessions.getInternal, {
       sessionId,
     });

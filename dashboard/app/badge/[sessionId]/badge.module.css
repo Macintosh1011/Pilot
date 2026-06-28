@@ -1,0 +1,300 @@
+/* ─── Page layout ────────────────────────────────────────────────────────── */
+
+.layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 3.5rem;
+  width: min(960px, 100%);
+}
+
+/* ─── Loading / error states ─────────────────────────────────────────────── */
+
+.loadCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  min-height: 22rem;
+}
+
+/* ─── Bookplate card ─────────────────────────────────────────────────────── */
+
+/* Outer card: paper stock, strong border + heavy shadow — mirrors iOS */
+.bookplate {
+  flex-shrink: 0;
+  width: min(400px, 100%);
+  border: 1px solid rgba(20, 20, 19, 0.5);
+  border-radius: 0.75rem;
+  background: var(--paper);
+  padding: 0.875rem;
+  box-shadow:
+    0 40px 80px rgba(20, 20, 19, 0.22),
+    0 4px 20px rgba(20, 20, 19, 0.1);
+}
+
+/* Inner frame: inset double-border like a letterpress bookplate */
+.inner {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.25rem;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 580px;
+}
+
+/* Header row: wordmark left, NO. xxx right */
+.bookplateHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.badgeNumber {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* Hero: spark + archetype eyebrow + archetype name + compliment */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  padding-bottom: 1.75rem;
+}
+
+.spark {
+  margin-bottom: 0.25rem;
+}
+
+.archetypeEyebrow {
+  margin: 0.75rem 0 0.6rem;
+  text-align: center;
+}
+
+.archetype {
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 6vw, 3.25rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+  margin: 0;
+  text-align: center;
+}
+
+.compliment {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 1.25rem 0 0;
+  max-width: 280px;
+}
+
+/* Stat bars block */
+.statList {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Footer row: ISSUED TO left, URL right — separated by a top rule */
+.bookplateFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(20, 20, 19, 0.18);
+}
+
+.issuedTo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.issuedLabel {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.visitorName {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.urlTag {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.22rem 0.45rem;
+  text-decoration: none;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.urlTag:hover {
+  border-color: rgba(204, 120, 92, 0.45);
+  color: var(--clay);
+}
+
+/* ─── Side panel ─────────────────────────────────────────────────────────── */
+
+.side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.sideHeading {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  color: var(--ink);
+  margin: 0 0 0.75rem;
+}
+
+.sideSub {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--clay);
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.sideBody {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Reward box internals */
+.rewardLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.85rem;
+}
+
+.rewardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.discountCode {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.offBadge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--clay);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  white-space: nowrap;
+}
+
+/* Share buttons */
+.shareActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.shareLink {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.8rem 1.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+
+.shareLink:hover {
+  background: var(--clay);
+}
+
+.shareLink:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+
+/* Footer copy */
+.softCta {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.poweredBy {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.55;
+  margin: 0;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .bookplate {
+    width: 100%;
+  }
+}

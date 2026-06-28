@@ -4,11 +4,55 @@ import SwiftUI
 /// function of `stage` (0…3) so it changes calmly as the conversation advances.
 struct AcmeDemoPanel: View {
     let stage: Int
+    /// Live numbers streamed by the agent (the visitor's own MRR/churn/accounts). nil ⇒ defaults.
+    var params: DemoParams? = nil
 
     private var churnHi: Bool { stage >= 1 }
     private var chartActive: Bool { stage >= 2 }
     private var alertsOn: Bool { stage >= 3 }
     private var count: Int { Demo.visibleCount(stage: stage) }
+
+    // MARK: - Live values (visitor's numbers when present, otherwise the demo defaults)
+
+    private var headlineText: String { params?.headline ?? "At-Risk Accounts" }
+    private var netMrrText: String { params?.netMrr ?? "$148.2k" }
+    private var churnText: String { params?.churnRate ?? "5.8%" }
+    private var atRiskText: String {
+        if let v = params?.mrrAtRisk, !v.isEmpty { return v }
+        return count == 0 ? "$0" : "$22.6k"
+    }
+    private var atRiskColor: Color {
+        (params?.mrrAtRisk != nil || count > 0) ? .rust : .ink
+    }
+    private var displayAccounts: [Account] {
+        guard let pa = params?.accounts, !pa.isEmpty else { return Demo.accounts }
+        return pa.map { a in
+            Account(name: a.name ?? "—", initials: Self.initials(a.name),
+                    mrr: a.mrr ?? "—", signal: a.signal ?? "",
+                    risk: Int((a.risk ?? "").filter(\.isNumber)) ?? 0)
+        }
+    }
+    /// The churn-signal series for the chart: explicit weekly values if given, else a gentle ramp
+    /// synthesized from a single stated churn % so the curve still visibly bends, else nil (default).
+    private var chartSeries: [Double]? {
+        if let s = params?.series {
+            let vals = s.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+            if vals.count >= 2 { return vals }
+        }
+        if let c = Self.number(from: params?.churnRate) {
+            return (0..<8).map { i in c * (0.62 + 0.38 * Double(i) / 7.0) }
+        }
+        return nil
+    }
+
+    static func number(from s: String?) -> Double? {
+        guard let s else { return nil }
+        return Double(s.filter { "0123456789.".contains($0) })
+    }
+    static func initials(_ name: String?) -> String {
+        let s = (name ?? "").split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
+        return s.isEmpty ? "•" : s.uppercased()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,14 +86,14 @@ struct AcmeDemoPanel: View {
     private func body(in _: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("CUSTOMER HEALTH").font(.mono(11)).tracking(2).foregroundColor(.muted).padding(.bottom, 6)
-            Text("At-Risk Accounts").font(.serif(30, weight: 500)).tracking(-0.6).foregroundColor(.ink)
+            Text(headlineText).font(.serif(30, weight: 500)).tracking(-0.6).foregroundColor(.ink)
                 .padding(.bottom, 22)
 
             HStack(spacing: 16) {
-                statCard(label: "NET MRR", value: "$148.2k", valueColor: .ink, highlighted: false)
+                statCard(label: "NET MRR", value: netMrrText, valueColor: .ink, highlighted: false)
                 churnCard
-                statCard(label: "MRR AT RISK", value: count == 0 ? "$0" : "$22.6k",
-                         valueColor: count == 0 ? .ink : .rust, highlighted: false)
+                statCard(label: "MRR AT RISK", value: atRiskText,
+                         valueColor: atRiskColor, highlighted: false)
             }
             .padding(.bottom, 22)
 
@@ -67,6 +111,8 @@ struct AcmeDemoPanel: View {
         VStack(alignment: .leading, spacing: 9) {
             Text(label).font(.mono(11)).tracking(1.5).foregroundColor(.muted)
             Text(value).font(.serif(30, weight: 500)).tracking(-0.5).foregroundColor(valueColor)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.45), value: value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20).padding(.vertical, 18)
@@ -78,8 +124,10 @@ struct AcmeDemoPanel: View {
         VStack(alignment: .leading, spacing: 9) {
             Text("CHURN RATE").font(.mono(11)).tracking(1.5).foregroundColor(.muted)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("5.8%").font(.serif(30, weight: 500)).tracking(-0.5)
+                Text(churnText).font(.serif(30, weight: 500)).tracking(-0.5)
                     .foregroundColor(churnHi ? .rust : .ink)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.45), value: churnText)
                 Text(stage >= 3 ? "forecast ↓" : "↑ 1.4pt")
                     .font(.mono(12)).foregroundColor(stage >= 3 ? .clay : .rust)
             }
@@ -103,7 +151,7 @@ struct AcmeDemoPanel: View {
                         .transition(.opacity)
                 }
             }
-            ChurnChart(active: chartActive).frame(height: 116)
+            ChurnChart(active: chartActive, series: chartSeries).frame(height: 116)
         }
         .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
         .background(RoundedRectangle(cornerRadius: 15).fill(Color.panel2))
@@ -139,7 +187,7 @@ struct AcmeDemoPanel: View {
                         .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
                         .foregroundColor(.ink.opacity(0.14)))
             } else {
-                ForEach(Demo.accounts.prefix(count)) { AccountRow(account: $0) }
+                ForEach(displayAccounts.prefix(count)) { AccountRow(account: $0) }
             }
         }
     }
@@ -187,10 +235,13 @@ private struct AccountRow: View {
 }
 
 /// The 8-week churn signal area chart, with an optional clay "projected with alerts" branch.
+/// When `series` is supplied (the visitor's own weekly churn), it plots those values instead of
+/// the demo default and drops the projection branch.
 private struct ChurnChart: View {
     let active: Bool
+    var series: [Double]? = nil
 
-    private let main: [CGPoint] = [
+    private let defaultMain: [CGPoint] = [
         .init(x: 0, y: 98), .init(x: 95, y: 90), .init(x: 190, y: 96), .init(x: 285, y: 74),
         .init(x: 380, y: 80), .init(x: 475, y: 58), .init(x: 570, y: 64), .init(x: 665, y: 44),
         .init(x: 760, y: 40),
@@ -199,10 +250,26 @@ private struct ChurnChart: View {
         .init(x: 475, y: 58), .init(x: 570, y: 72), .init(x: 665, y: 92), .init(x: 760, y: 110),
     ]
 
+    /// Map the live series into the chart's 760×150 space (higher churn = higher line).
+    private var seriesPoints: [CGPoint]? {
+        guard let s = series, s.count >= 2 else { return nil }
+        let lo = s.min() ?? 0, hi = s.max() ?? 1
+        let span = max(hi - lo, 0.0001)
+        let yTop = 16.0, yBot = 140.0
+        return s.enumerated().map { i, v in
+            let x = Double(i) / Double(s.count - 1) * 760
+            let y = yBot - (v - lo) / span * (yBot - yTop)
+            return CGPoint(x: x, y: y)
+        }
+    }
+
     var body: some View {
         Canvas { ctx, size in
             let sx = size.width / 760, sy = size.height / 150
             func map(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * sx, y: p.y * sy) }
+
+            let main = seriesPoints ?? defaultMain
+            let custom = seriesPoints != nil
 
             // main area
             var area = Path()
@@ -221,7 +288,7 @@ private struct ChurnChart: View {
             main.dropFirst().forEach { line.addLine(to: map($0)) }
             ctx.stroke(line, with: .color(.rust), style: StrokeStyle(lineWidth: 2.5, lineJoin: .round))
 
-            guard active else { return }
+            guard active, !custom else { return }
             // projected area + dashed branch
             var parea = Path()
             parea.move(to: map(proj[0]))

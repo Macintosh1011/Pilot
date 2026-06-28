@@ -260,8 +260,8 @@ async function writeResult(
 ) {
   const contact = normalized.contact ?? {};
   const patch = clean({
-    visitorName: session?.visitorName ?? args.name,
-    company: session?.company ?? args.company ?? normalized.company?.name,
+    visitorName: session?.visitorName ?? args.name ?? normalized.person?.fullName,
+    company: session?.company ?? args.company ?? normalized.company?.name ?? normalized.person?.company,
     linkedinUrl:
       session?.linkedinUrl ?? args.linkedinUrl ?? normalized.person?.linkedinUrl,
     role: normalized.person?.title ?? session?.role,
@@ -278,7 +278,10 @@ async function writeResult(
 
 async function getCredits(apiKey: string) {
   const data = await getFiber(apiKey, "/v1/get-org-credits");
-  return { available: Number(data?.available ?? data?.credits ?? data?.remaining ?? 0) };
+  // fiber wraps the balance in `output` ({ output: { available, max, used } }). The old bare
+  // top-level read returned undefined → 0 → every visit fell back despite a funded account.
+  const out = data?.output ?? data;
+  return { available: Number(out?.available ?? out?.credits ?? out?.remaining ?? 0) };
 }
 
 async function getFiber(apiKey: string, path: string) {
@@ -321,36 +324,63 @@ function normalizeFiber(
   credits?: { available?: number; chargedThisVisit?: number },
 ) {
   const company = firstCompany(companyPayload);
-  const person = personPayload?.output?.profile ?? personPayload?.profile ?? personPayload?.output;
+  // Person is at output.data[0] (live API shape); fall through older shapes for cache compat.
+  const person =
+    personPayload?.output?.data?.[0] ??
+    personPayload?.output?.profile ??
+    personPayload?.profile ??
+    personPayload?.output;
   const contactProfile = contactPayload?.output?.profile ?? contactPayload?.profile ?? {};
 
   return clean({
     company: company
       ? {
-          name: pick(company.name, company.company_name, company.display_name),
-          domain: pick(company.domain, company.website_domain, company.primary_domain),
-          industry: pick(company.industry, company.category, company.sector),
+          // "name" is null in live responses; "preferred_name" or accelerators[0].company_name carries it.
+          name: pick(company.preferred_name, company.names?.[0], company.accelerators?.[0]?.company_name, company.name),
+          // Domain lives in the "domains" list, not a flat "domain" key.
+          domain: pick(company.domains?.[0], company.accelerators?.[0]?.company_domain),
+          // "industry" is null; real industry is in li_industries[0].name or standard_industries[0].
+          industry: pick(company.li_industries?.[0]?.name, company.standard_industries?.[0]),
+          // employee_count_consensus is {gte, lte}; read .gte (both sides are equal for point estimates).
           employeeCount: numberish(
-            pick(company.employee_count_consensus, company.employeeCount, company.employees),
+            typeof company.employee_count_consensus === "object" && company.employee_count_consensus !== null
+              ? company.employee_count_consensus.gte
+              : company.employee_count_consensus,
           ),
           founded: yearish(pick(company.founded_on_consensus, company.founded, company.founded_on)),
-          funding: pick(company.latest_funding_consensus, company.funding_stage, company.funding),
-          location: pick(company.location, company.headquarters, company.hq_location),
-          linkedinUrl: pick(company.linkedin_url, company.linkedinUrl),
-          description: pick(company.description, company.short_description),
-          techStack: arrayish(pick(company.tech_stack, company.technologies)),
+          // latest_funding_consensus is often null; fall back to funding_stage.
+          funding: pick(company.latest_funding_consensus, company.funding_stage),
+          // "location" is null; real location is in location_name or location_consensus.formatted_address.
+          location: pick(company.location_name, company.location_consensus?.formatted_address),
+          // Build LinkedIn URL from slug since "linkedin_url" key is absent.
+          linkedinUrl: company.linkedin_primary_slug
+            ? `https://www.linkedin.com/company/${company.linkedin_primary_slug}`
+            : pick(company.linkedin_url, company.linkedinUrl),
+          description: pick(company.short_description, company.li_description, company.description),
+          // technologies_used is [{name: string}]; map to string array.
+          techStack: arrayish(
+            Array.isArray(company.technologies_used)
+              ? company.technologies_used.map((t: any) => t?.name).filter(Boolean)
+              : pick(company.tech_stack, company.technologies),
+          ),
         }
       : undefined,
     person: person
       ? {
-          fullName: pick(person.full_name, person.fullName, person.name),
-          title: pick(person.title, person.headline_title, person.current_title),
-          seniority: seniority(pick(person.title, person.seniority, person.headline)),
-          location: pick(person.location, person.geo),
-          linkedinUrl: pick(person.linkedin_url, person.linkedinUrl, person.url),
+          // "full_name" is null; "name" carries the full name, with first+last as last resort.
+          fullName:
+            pick(person.name, person.full_name, person.fullName) ??
+            ([person.first_name, person.last_name].filter(Boolean).join(" ") || undefined),
+          // No flat "title" key; headline contains "Title at Company" and is the best source.
+          title: pick(person.headline, person.current_job?.title, person.title, person.headline_title),
+          seniority: seniority(pick(person.headline, person.title, person.seniority)),
+          // "location" is null; "locality" has the place string.
+          location: pick(person.locality, person.location, person.geo),
+          // "linkedin_url" is null; "url" is the profile URL.
+          linkedinUrl: pick(person.url, person.linkedin_url, person.linkedinUrl),
           headline: pick(person.headline, person.summary),
           tenureMonths: numberish(pick(person.tenure_months, person.tenureMonths)),
-          isDecisionMaker: isDecisionMaker(pick(person.title, person.seniority, person.headline)),
+          isDecisionMaker: isDecisionMaker(pick(person.headline, person.title, person.seniority)),
         }
       : undefined,
     contact: {
@@ -413,8 +443,8 @@ function crossCheck(stated: { company?: string; role?: string }, n: any): FiberM
 
 function companyIdentifier(company?: string) {
   const domain = domainOf(company);
-  if (domain) return { companyDomain: domain };
-  if (company) return { companyName: company };
+  if (domain) return { companyDomain: { value: domain } };
+  if (company) return { companyName: { value: company } };
   return {};
 }
 
@@ -437,16 +467,23 @@ function firstCompany(payload: any) {
 
 function firstProfileHit(payload: any) {
   return (
+    payload?.output?.data?.[0]?.url ??
     payload?.output?.data?.[0]?.linkedinUrl ??
     payload?.output?.data?.[0]?.linkedin_url ??
+    payload?.data?.[0]?.url ??
     payload?.data?.[0]?.linkedinUrl ??
     payload?.data?.[0]?.linkedin_url
   );
 }
 
 function linkedinFromPerson(payload: any) {
-  const person = payload?.output?.profile ?? payload?.profile ?? payload?.output;
-  return pick(person?.linkedinUrl, person?.linkedin_url, person?.url);
+  const person =
+    payload?.output?.data?.[0] ??
+    payload?.output?.profile ??
+    payload?.profile ??
+    payload?.output;
+  // "url" is the live field name; linkedin_url and linkedinUrl kept for cache compat.
+  return pick(person?.url, person?.linkedin_url, person?.linkedinUrl);
 }
 
 function charge(payload: any) {

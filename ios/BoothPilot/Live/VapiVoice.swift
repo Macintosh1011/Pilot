@@ -1,3 +1,4 @@
+import AVFoundation
 import Combine
 import Foundation
 import ConvexMobile
@@ -51,7 +52,7 @@ final class VapiVoice: ObservableObject {
             }
 
             do {
-                try await self.vapi.start(
+                _ = try await self.vapi.start(
                     assistant: assistant,
                     metadata: ["sessionId": resolvedSessionId, "deviceId": BoothConfig.deviceId]
                 )
@@ -71,6 +72,32 @@ final class VapiVoice: ObservableObject {
         vapi.stop()
         started = false
         spark = .idle
+    }
+
+    /// Nudges the agent to greet the visitor by name immediately after a LinkedIn QR scan.
+    /// The server-side injection from `lookupVisitor` supplies the real identity; this message
+    /// simply prompts the agent to respond. Fire-and-forget — never crashes the kiosk.
+    func noteScannedLinkedIn() {
+        Task {
+            do {
+                try await vapi.send(
+                    message: VapiMessage(
+                        type: "add-message",
+                        role: "user",
+                        content: "I just showed you my LinkedIn QR code."
+                    )
+                )
+            } catch {
+                print("[Vapi] noteScannedLinkedIn failed:", error)
+            }
+        }
+    }
+
+    /// Pre-warm mic authorization during the greeting so the system prompt never interrupts
+    /// the live conversation. Idempotent — a no-op once the user has decided.
+    func prepare() {
+        guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
+        AVAudioApplication.requestRecordPermission { _ in }
     }
 
     private func subscribe() {
@@ -103,45 +130,31 @@ final class VapiVoice: ObservableObject {
         }
     }
 
-    private func handleTranscript(_ transcriptEvent: Transcript) {
-        let text = stringValue(named: ["transcript", "text", "content"], in: transcriptEvent)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    /// Live caption + spark, typed against the SDK's `Transcript` (role + partial/final).
+    private func handleTranscript(_ event: Transcript) {
+        let text = event.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-
         transcript = text
-        updateSpeaker(
-            role: stringValue(named: ["role"], in: transcriptEvent),
-            transcriptType: stringValue(named: ["transcriptType", "transcript_type"], in: transcriptEvent)
-        )
-    }
-
-    private func handleSpeechUpdate(_ update: SpeechUpdate) {
-        let role = stringValue(named: ["role"], in: update)
-        let status = stringValue(named: ["status"], in: update)?.lowercased()
-
-        switch normalizedRole(role) {
-        case "user", "customer":
+        let isFinal = event.transcriptType == .final
+        switch event.role {
+        case .user:
             speaker = "VISITOR"
-            spark = status == "stopped" ? .thinking : .listening
-        case "assistant", "bot":
+            spark = isFinal ? .thinking : .listening
+        case .assistant:
             speaker = "BOOTHPILOT"
-            spark = status == "stopped" ? .listening : .speaking
-        default:
-            break
+            spark = isFinal ? .listening : .speaking
         }
     }
 
-    private func updateSpeaker(role: String?, transcriptType: String?) {
-        let kind = transcriptType?.lowercased()
-        switch normalizedRole(role) {
-        case "user", "customer":
+    /// Speech start/stop leads the transcript, so it drives the spark between captions.
+    private func handleSpeechUpdate(_ update: SpeechUpdate) {
+        switch update.role {
+        case .user:
             speaker = "VISITOR"
-            spark = kind == "final" ? .thinking : .listening
-        case "assistant":
+            spark = update.status == .stopped ? .thinking : .listening
+        case .assistant:
             speaker = "BOOTHPILOT"
-            spark = kind == "final" ? .listening : .speaking
-        default:
-            break
+            spark = update.status == .stopped ? .listening : .speaking
         }
     }
 
@@ -175,32 +188,6 @@ final class VapiVoice: ObservableObject {
             print("[Vapi] config parse failed:", error)
             return nil
         }
-    }
-
-    private func stringValue(named names: [String], in value: Any) -> String? {
-        let mirror = Mirror(reflecting: value)
-        for child in mirror.children {
-            guard let label = child.label, names.contains(label) else { continue }
-            return stringify(child.value)
-        }
-        return nil
-    }
-
-    private func stringify(_ value: Any) -> String? {
-        if let string = value as? String { return string }
-        let mirror = Mirror(reflecting: value)
-        if mirror.displayStyle == .optional {
-            guard let child = mirror.children.first else { return nil }
-            return stringify(child.value)
-        }
-        if let rawValue = mirror.children.first(where: { $0.label == "rawValue" })?.value as? String {
-            return rawValue
-        }
-        return String(describing: value)
-    }
-
-    private func normalizedRole(_ role: String?) -> String? {
-        role?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }
 

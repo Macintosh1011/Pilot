@@ -21,7 +21,7 @@ async function fetchSession(sessionId: string): Promise<SessionForMetadata | nul
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        path: "sessions:get",
+        path: "sessions:badgePublic",
         args: { sessionId },
         format: "json",
       }),

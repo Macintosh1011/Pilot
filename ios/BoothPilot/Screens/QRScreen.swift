@@ -1,7 +1,10 @@
 import SwiftUI
 
 /// 4 · LINKEDIN QR — a friendly typed prompt over a tasteful viewfinder with a clay scan frame.
+/// Live mode shows the front webcam centered in the frame; scripted/sim falls back to a hatch.
 struct QRScreen: View {
+    var live: Bool = false
+    @ObservedObject var camera: FrontCameraSession
     var onScan: (String) -> Void = { _ in }
     @State private var scan = false
 
@@ -58,7 +61,10 @@ struct QRScreen: View {
             RoundedRectangle(cornerRadius: 20).fill(Color.panel)
             RoundedRectangle(cornerRadius: 20).strokeBorder(Color.ink.opacity(0.1))
 
-            if QRScanner.isSupported {
+            if live && camera.isReady {
+                CameraPreviewView(session: camera.session)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            } else if !live && QRScanner.isSupported {
                 QRScanner(onCode: onScan)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
             } else {

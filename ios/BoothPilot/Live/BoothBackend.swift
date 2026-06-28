@@ -5,13 +5,60 @@ import ConvexMobile
 // MARK: - Live documents (the subset of B2's Convex schema the iPad renders)
 // Field names + function paths mirror INTERFACES.md / convex/schema.ts exactly — the locked contract.
 
+/// One at-risk account the agent can stream into the live dashboard. All strings so they decode
+/// cleanly regardless of how the model formats numbers; `risk` is parsed to an Int at render time.
+struct ParamAccount: Decodable {
+    var name: String?
+    var mrr: String?
+    var signal: String?
+    var risk: String?
+
+    enum CodingKeys: String, CodingKey { case name, mrr, signal, risk }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try? c.decode(String.self, forKey: .name)
+        mrr = try? c.decode(String.self, forKey: .mrr)
+        signal = try? c.decode(String.self, forKey: .signal)
+        risk = try? c.decode(String.self, forKey: .risk)
+    }
+}
+
+/// The visitor's own numbers, streamed by the agent's `show_view` params so the Acme dashboard
+/// mirrors their business live. Every field optional + per-field-tolerant: a malformed value
+/// drops to nil (the panel falls back to its defaults) rather than failing the whole decode.
+struct DemoParams: Decodable {
+    var netMrr: String?
+    var churnRate: String?
+    var mrrAtRisk: String?
+    var series: String?
+    var headline: String?
+    var accounts: [ParamAccount]?
+
+    enum CodingKeys: String, CodingKey { case netMrr, churnRate, mrrAtRisk, series, headline, accounts }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        netMrr = try? c.decode(String.self, forKey: .netMrr)
+        churnRate = try? c.decode(String.self, forKey: .churnRate)
+        mrrAtRisk = try? c.decode(String.self, forKey: .mrrAtRisk)
+        series = try? c.decode(String.self, forKey: .series)
+        headline = try? c.decode(String.self, forKey: .headline)
+        accounts = try? c.decode([ParamAccount].self, forKey: .accounts)
+    }
+}
+
 struct DemoStateDoc: Decodable {
     let view: String
     let highlight: String?
-}
+    let params: DemoParams?
 
-struct PresenceDoc: Decodable {
-    let event: String   // "approach" | "leave"
+    enum CodingKeys: String, CodingKey { case view, highlight, params }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        view = try c.decode(String.self, forKey: .view)
+        highlight = try? c.decode(String.self, forKey: .highlight)
+        // Isolate params: a bad params blob must never drop `view` (which drives navigation).
+        params = try? c.decode(DemoParams.self, forKey: .params)
+    }
 }
 
 /// A badge stat. `value` is `v.number()` → a Convex float, so it MUST decode via `@ConvexFloat`
@@ -56,10 +103,8 @@ private enum Fn {
     static let captureContact = "sessions:captureContact" // mutation (GPT capture_contact)
     static let lookupVisitor = "fiber:lookupVisitor"  // action    (GPT lookup_visitor)
     static let finalize = "finalize:finalize"         // action    (GPT finalize_session)
-    static let vapiStartConfig = "vapi:startConfig"   // action    (Vapi transient assistant config)
     static let watchSession = "sessions:get"          // query
     static let watchDemoState = "demoState:bySession" // query
-    static let watchPresence = "presence:latest"      // query
 }
 
 /// The single observable backend service. Owns one `ConvexClient` for the app lifetime, the
@@ -73,25 +118,15 @@ private enum Fn {
 final class BoothBackend: ObservableObject {
     @Published private(set) var liveSession: BoothSession?   // ← Badge screen reads this
     @Published private(set) var sessionId: String?
-    @Published var presenceEvent: String?                    // Phase 2 voice greet
     @Published var demoView: String?                         // Phase 2 voice demo drive
     @Published var demoHighlight: String?
+    @Published var demoParams: DemoParams?                    // live numbers → Acme dashboard
 
     private let client: ConvexClient
     private var sessionCancellables = Set<AnyCancellable>()
-    private var presenceCancellable: AnyCancellable?
 
     init() {
         client = ConvexClient(deploymentUrl: BoothConfig.convexURL)
-    }
-
-    /// Watch for someone approaching this device (Phase 2 greet). Phase 1 doesn't use it.
-    func startWatchingPresence() {
-        presenceCancellable = client
-            .subscribe(to: Fn.watchPresence, with: ["deviceId": BoothConfig.deviceId], yielding: PresenceDoc?.self)
-            .replaceError(with: nil)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.presenceEvent = $0?.event }
     }
 
     private func subscribeToSession(_ id: String) {
@@ -104,7 +139,11 @@ final class BoothBackend: ObservableObject {
         client.subscribe(to: Fn.watchDemoState, with: ["sessionId": id], yielding: DemoStateDoc?.self)
             .replaceError(with: nil)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] doc in self?.demoView = doc?.view; self?.demoHighlight = doc?.highlight }
+            .sink { [weak self] doc in
+                self?.demoView = doc?.view
+                self?.demoHighlight = doc?.highlight
+                self?.demoParams = doc?.params
+            }
             .store(in: &sessionCancellables)
     }
 
@@ -115,6 +154,7 @@ final class BoothBackend: ObservableObject {
         liveSession = nil
         demoView = nil
         demoHighlight = nil
+        demoParams = nil
     }
 
     // MARK: - Tool surface (sessionId injected here; all fire-and-forget)
@@ -125,20 +165,6 @@ final class BoothBackend: ObservableObject {
             sessionId = id
             subscribeToSession(id)
         } catch { print("[Convex] createSession:", error) }
-    }
-
-    /// Fetch the transient Vapi assistant JSON config for the current session.
-    func vapiAssistantConfig() async -> String? {
-        guard let id = sessionId else { return nil }
-        do {
-            return try await client.action(
-                Fn.vapiStartConfig,
-                with: ["sessionId": id, "deviceId": BoothConfig.deviceId]
-            )
-        } catch {
-            print("[Convex] vapiAssistantConfig:", error)
-            return nil
-        }
     }
 
     /// Persist a transcript turn — scoring/badge/email read this as ground truth (INTERFACES §1.3).

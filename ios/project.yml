@@ -17,12 +17,13 @@ packages:
 settings:
   base:
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "5"
     SWIFT_VERSION: "5.0"
     TARGETED_DEVICE_FAMILY: "2" # iPad only
     GENERATE_INFOPLIST_FILE: NO
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
 targets:
   BoothPilot:
@@ -40,11 +41,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.parkt.boothpilot
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 4S3TLKZ4DA
     info:
       path: BoothPilot/Info.plist
       properties:
         CFBundleDisplayName: BoothPilot
         CFBundleName: BoothPilot
+        CFBundleIconName: AppIcon
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Backend wiring (non-secret; overridable per-device via `defaults write dev.parkt.boothpilot <key> …`)
         BoothConvexURL: https://jovial-wildebeest-931.convex.cloud
         BoothDashboardURL: https://localhost:3000   # point at the DEPLOYED dashboard for an off-device scannable badge QR

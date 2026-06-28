@@ -35,12 +35,14 @@ struct BoothView: View {
         switch director.screen {
         case .attract: AttractScreen()
         case .greeting: GreetingScreen()
-        case .qr: QRScreen(onScan: { director.captureLinkedIn($0) })
+        case .qr: QRScreen(live: director.live, camera: director.camera,
+                           onScan: { director.captureLinkedIn($0) })
         case .conversation: ConversationScreen(director: director)
-        case .badge: BadgeScreen(onRestart: { director.goTo(.attract) },
+        case .badge: BadgeScreen(onRestart: { director.restart() },
                                  live: director.backend.liveSession?.badge,
                                  liveName: director.backend.liveSession?.visitorName,
-                                 badgeURL: director.badgeURL)
+                                 badgeURL: director.badgeURL,
+                                 isLive: director.live)
         }
     }
 }

@@ -1,37 +1,77 @@
+/* ─── Design tokens ─────────────────────────────────────────────────────────── */
+
 :root {
-  color-scheme: dark;
-  --bg: #0b0d12;
-  --surface: #141821;
-  --surface-2: #10141d;
-  --border: rgba(255, 255, 255, 0.08);
-  --muted: #94a3b8;
-  --text: #f8fafc;
-  --cyan: #22d3ee;
-  --violet: #7c5cff;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
-  --slate: #64748b;
+  color-scheme: light;
+
+  /* Core palette — mirrors iOS Theme.swift exactly */
+  --paper:  #FAF9F5;
+  --panel:  #F0EEE6;
+  --panel2: #F4F2EA;
+  --card:   #FCFBF7;
+  --chip:   #E7E3D8;
+  --ink:    #141413;
+  --muted:  #6B6B63;
+  --clay:   #CC785C;
+  --tan:    #D4A27F;
+  --rust:   #B05730;
+
+  /* Borders */
+  --border:       rgba(20, 20, 19, 0.12);
+  --border-strong: rgba(20, 20, 19, 0.28);
+
+  /* Semantic state colors — warm, on-brand */
+  --success: #5A7A58;
+  --warning: #C49A6C;
+  --danger:  #B05730;
+
+  /* Urgency levels */
+  --urgency-low:  #6B6B63;
+  --urgency-med:  #C49A6C;
+  --urgency-high: #B05730;
+
+  /* Font stacks (populated by next/font in layout.tsx) */
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-mono:  "Courier New", Courier, monospace;
 }
+
+/* ─── Reset ─────────────────────────────────────────────────────────────────── */
 
 * {
   box-sizing: border-box;
 }
 
+/* ─── Page background + film grain ─────────────────────────────────────────── */
+
 html {
-  background: var(--bg);
+  background: var(--paper);
+}
+
+/*
+  Faint paper grain — SVG feTurbulence tiled at 200 × 200 px.
+  pointer-events: none so it never blocks interaction.
+*/
+html::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  /* Warm paper + faint clay/tan corner washes — mirrors iOS PaperBackground */
   background:
-    radial-gradient(circle at 12% 8%, rgba(124, 92, 255, 0.2), transparent 34rem),
-    radial-gradient(circle at 88% 2%, rgba(34, 211, 238, 0.16), transparent 30rem),
-    var(--bg);
-  color: var(--text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    radial-gradient(circle at 82% 12%, rgba(204, 120, 92, 0.06) 0%, transparent 55%),
+    radial-gradient(circle at 12% 88%, rgba(212, 162, 127, 0.07) 0%, transparent 52%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
 }
 
 a {
@@ -52,10 +92,15 @@ button {
 
 code {
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.4rem;
+  background: var(--chip);
   padding: 0.1rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--ink);
 }
+
+/* ─── Shells ────────────────────────────────────────────────────────────────── */
 
 .env-shell,
 .badge-page-shell {
@@ -65,16 +110,18 @@ code {
   padding: 2rem;
 }
 
+/* ─── Base card shape (shared by env-card, badge-card, skeleton, empty, waiting) */
+
 .env-card,
 .badge-card,
 .waiting-state,
 .empty-card,
 .skeleton-block,
 .skeleton-card {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 2rem;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025));
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  background: var(--card);
+  box-shadow: 0 4px 32px rgba(20, 20, 19, 0.07);
 }
 
 .env-card {
@@ -82,18 +129,31 @@ code {
   padding: 3rem;
 }
 
+.env-card p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ─── Headings inside cards ─────────────────────────────────────────────────── */
+
 .env-card h1,
 .hero-header h1,
 .badge-card h1 {
   margin: 0;
-  letter-spacing: -0.05em;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
+
+/* ─── Dashboard shell ───────────────────────────────────────────────────────── */
 
 .dashboard-shell {
   width: min(1680px, 100%);
   margin: 0 auto;
   padding: 2rem;
 }
+
+/* ─── Hero header ───────────────────────────────────────────────────────────── */
 
 .hero-header {
   display: flex;
@@ -102,9 +162,9 @@ code {
   align-items: flex-end;
   border: 1px solid var(--border);
   border-radius: 2rem;
-  background: rgba(20, 24, 33, 0.72);
+  background: var(--card);
   padding: 2rem;
-  backdrop-filter: blur(18px);
+  box-shadow: 0 2px 16px rgba(20, 20, 19, 0.05);
 }
 
 .hero-header h1 {
@@ -114,20 +174,25 @@ code {
 
 .hero-header p {
   max-width: 760px;
-  color: #cbd5e1;
+  color: var(--muted);
   font-size: 1.1rem;
   line-height: 1.6;
 }
 
+/* ─── Eyebrows / labels ─────────────────────────────────────────────────────── */
+
 .eyebrow,
 .section-label {
   margin: 0 0 0.5rem;
-  color: var(--cyan);
+  color: var(--clay);
+  font-family: var(--font-mono);
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+
+/* ─── Header stats ──────────────────────────────────────────────────────────── */
 
 .header-stats {
   display: grid;
@@ -138,17 +203,27 @@ code {
 .header-stats span {
   border: 1px solid var(--border);
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--panel);
   padding: 1rem;
   color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .header-stats strong {
   display: block;
-  color: var(--text);
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: 2rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: normal;
 }
+
+/* ─── Dashboard grid ────────────────────────────────────────────────────────── */
 
 .dashboard-grid {
   display: grid;
@@ -157,15 +232,18 @@ code {
   margin-top: 1rem;
 }
 
+/* ─── Section panels ────────────────────────────────────────────────────────── */
+
 .lead-section,
 .timeline-panel,
 .review-panel {
   border: 1px solid var(--border);
   border-radius: 2rem;
-  background: rgba(16, 20, 29, 0.76);
+  background: var(--card);
   padding: 1rem;
-  backdrop-filter: blur(18px);
 }
+
+/* ─── Topline / footer row pattern ─────────────────────────────────────────── */
 
 .section-heading,
 .review-topline,
@@ -183,7 +261,11 @@ code {
 .review-topline h3,
 .card-topline h3 {
   margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
 }
+
+/* ─── Pills + chips (base) ──────────────────────────────────────────────────── */
 
 .sync-pill,
 .queue-count,
@@ -204,16 +286,20 @@ code {
   gap: 0.35rem;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--chip);
   padding: 0.38rem 0.68rem;
-  color: #dbeafe;
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-transform: capitalize;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
+/* ─── Live indicator ────────────────────────────────────────────────────────── */
+
 .live-dot {
-  color: var(--green);
+  color: var(--clay);
 }
 
 .live-dot::before {
@@ -222,9 +308,56 @@ code {
   border-radius: 999px;
   background: currentColor;
   content: "";
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 0 0 rgba(204, 120, 92, 0.6);
   animation: pulse 1.8s infinite;
 }
+
+/* ─── Status / review pill state overrides ──────────────────────────────────── */
+
+.status-pill:not(.done) {
+  color: var(--clay);
+  border-color: rgba(204, 120, 92, 0.35);
+  background: rgba(204, 120, 92, 0.1);
+}
+
+.status-pill.done,
+.review-pill.sent,
+.success-copy,
+.match-flag.verified {
+  color: var(--success);
+}
+
+.review-pill.pending,
+.review-pill.edited,
+.urgency-pill.medium,
+.urgency-box.medium,
+.match-flag.mismatch {
+  color: var(--warning);
+}
+
+.urgency-pill.high,
+.urgency-box.high {
+  color: var(--danger);
+}
+
+/* ─── Muted chip variant ────────────────────────────────────────────────────── */
+
+.muted-chip {
+  color: var(--muted);
+}
+
+/* ─── Badge chip ────────────────────────────────────────────────────────────── */
+
+.badge-chip {
+  background: rgba(204, 120, 92, 0.1);
+  border-color: rgba(204, 120, 92, 0.28);
+}
+
+.badge-chip strong {
+  color: var(--clay);
+}
+
+/* ─── Card grid ─────────────────────────────────────────────────────────────── */
 
 .card-grid {
   display: grid;
@@ -233,12 +366,14 @@ code {
   margin-top: 1rem;
 }
 
+/* ─── Lead card ─────────────────────────────────────────────────────────────── */
+
 .lead-card {
   display: grid;
   gap: 1rem;
   border: 1px solid var(--border);
   border-radius: 1.6rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+  background: var(--card);
   padding: 1rem;
   text-align: left;
   transition:
@@ -251,11 +386,13 @@ code {
 .lead-card:hover,
 .lead-card:focus-visible,
 .lead-card.selected {
-  border-color: rgba(34, 211, 238, 0.45);
-  background: linear-gradient(180deg, rgba(34, 211, 238, 0.1), rgba(124, 92, 255, 0.04));
+  border-color: rgba(204, 120, 92, 0.45);
+  background: linear-gradient(180deg, rgba(204, 120, 92, 0.06), rgba(204, 120, 92, 0.02));
   outline: none;
   transform: translateY(-2px);
 }
+
+/* ─── Muted text ────────────────────────────────────────────────────────────── */
 
 .card-topline p,
 .muted,
@@ -272,30 +409,15 @@ code {
   line-height: 1.45;
 }
 
-.status-pill:not(.done) {
-  color: var(--cyan);
-  box-shadow: inset 0 0 22px rgba(34, 211, 238, 0.09);
+.warning-copy {
+  color: var(--warning);
 }
 
-.status-pill.done,
-.review-pill.sent,
-.success-copy,
-.match-flag.verified {
-  color: var(--green);
+.success-copy {
+  color: var(--success);
 }
 
-.review-pill.pending,
-.review-pill.edited,
-.urgency-pill.medium,
-.urgency-box.medium,
-.match-flag.mismatch {
-  color: var(--amber);
-}
-
-.urgency-pill.high,
-.urgency-box.high {
-  color: var(--red);
-}
+/* ─── Nested section panels ─────────────────────────────────────────────────── */
 
 .fiber-panel,
 .use-case,
@@ -304,9 +426,11 @@ code {
 .review-item {
   border: 1px solid var(--border);
   border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--panel);
   padding: 0.9rem;
 }
+
+/* ─── Chip rows ─────────────────────────────────────────────────────────────── */
 
 .chip-row {
   display: flex;
@@ -314,26 +438,35 @@ code {
   gap: 0.45rem;
 }
 
+/* ─── Urgency box ───────────────────────────────────────────────────────────── */
+
 .urgency-box {
   border-left: 3px solid currentColor;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 19, 0.04);
   padding: 0.8rem;
 }
 
 .urgency-box span {
   display: block;
   margin-bottom: 0.35rem;
-  font-weight: 900;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .urgency-box em {
-  color: #cbd5e1;
+  color: var(--muted);
 }
 
+/* ─── Confidence meter ──────────────────────────────────────────────────────── */
+
 .confidence-topline strong {
+  font-family: var(--font-serif);
   font-size: 3rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 0.9;
 }
@@ -343,13 +476,13 @@ code {
   overflow: hidden;
   height: 0.72rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(20, 20, 19, 0.08);
 }
 
 .meter-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  background: var(--clay);
   transition: width 500ms ease;
 }
 
@@ -358,44 +491,28 @@ code {
   top: 0;
   bottom: 0;
   width: 1px;
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(20, 20, 19, 0.2);
 }
 
-.meter-tick.one {
-  left: 25%;
-}
-
-.meter-tick.two {
-  left: 50%;
-}
-
-.meter-tick.three {
-  left: 75%;
-}
+.meter-tick.one  { left: 25%; }
+.meter-tick.two  { left: 50%; }
+.meter-tick.three { left: 75%; }
 
 .reason-list {
   margin: 0.75rem 0 0;
   padding-left: 1rem;
-  color: #cbd5e1;
-}
-
-.badge-chip {
-  background: linear-gradient(90deg, rgba(124, 92, 255, 0.24), rgba(34, 211, 238, 0.15));
-}
-
-.badge-chip strong {
-  color: var(--cyan);
-}
-
-.muted-chip {
   color: var(--muted);
 }
+
+/* ─── Side stack ────────────────────────────────────────────────────────────── */
 
 .side-stack {
   display: grid;
   align-content: start;
   gap: 1rem;
 }
+
+/* ─── Timeline panel ────────────────────────────────────────────────────────── */
 
 .timeline-panel {
   position: sticky;
@@ -429,9 +546,14 @@ code {
   align-items: start;
   border: 1px solid var(--border);
   border-radius: 1.1rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--panel);
   padding: 0.8rem;
   animation: rise 220ms ease both;
+}
+
+.timeline-row p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
 }
 
 .step-icon {
@@ -441,16 +563,14 @@ code {
   height: 2.2rem;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--violet), var(--cyan));
-  color: #020617;
+  background: var(--clay);
+  color: var(--paper);
+  font-family: var(--font-mono);
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 700;
 }
 
-.timeline-row p {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-}
+/* ─── Review panel ──────────────────────────────────────────────────────────── */
 
 .review-panel.embedded {
   max-height: 50rem;
@@ -465,8 +585,12 @@ code {
 
 .top-nav {
   margin-bottom: 1rem;
-  color: var(--cyan);
-  font-weight: 800;
+  color: var(--clay);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .review-list {
@@ -483,6 +607,8 @@ code {
   gap: 0.5rem;
 }
 
+/* ─── Draft form ────────────────────────────────────────────────────────────── */
+
 .draft-form {
   display: grid;
   gap: 0.75rem;
@@ -491,8 +617,12 @@ code {
 .draft-form label {
   display: grid;
   gap: 0.4rem;
-  color: #cbd5e1;
-  font-weight: 800;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .draft-form input,
@@ -500,41 +630,79 @@ code {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 0.9rem;
-  background: rgba(0, 0, 0, 0.24);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink);
   padding: 0.8rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
 }
+
+.draft-form input:focus,
+.draft-form textarea:focus {
+  outline: 2px solid var(--clay);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+/* ─── Review action buttons ─────────────────────────────────────────────────── */
 
 .review-actions button,
 .share-actions a {
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--violet), var(--cyan));
-  color: #020617;
+  background: var(--ink);
+  color: var(--paper);
   padding: 0.72rem 1rem;
-  font-weight: 900;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
 }
 
 .review-actions button:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.38;
 }
 
 .review-actions .ghost-button {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: transparent;
-  color: #e2e8f0;
+  color: var(--ink);
 }
 
 .review-actions .send-button {
-  background: linear-gradient(90deg, var(--green), var(--cyan));
+  background: var(--clay);
+  color: var(--paper);
 }
 
-.warning-copy {
-  color: var(--amber);
+/* ─── Review link ───────────────────────────────────────────────────────────── */
+
+.review-link {
+  color: var(--clay);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
+
+.review-link:hover {
+  color: var(--rust);
+}
+
+/* ─── Skeleton / loading states ─────────────────────────────────────────────── */
 
 .skeleton-card {
   min-height: 28rem;
+  background: linear-gradient(
+    90deg,
+    var(--chip) 0%,
+    var(--panel2) 40%,
+    var(--chip) 80%
+  );
+  background-size: 200% 100%;
   animation: shimmer 1.8s linear infinite;
 }
 
@@ -542,8 +710,19 @@ code {
   margin-top: 1rem;
   padding: 1.25rem;
   color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: linear-gradient(
+    90deg,
+    var(--chip) 0%,
+    var(--panel2) 40%,
+    var(--chip) 80%
+  );
+  background-size: 200% 100%;
   animation: shimmer 1.8s linear infinite;
 }
+
+/* ─── Waiting / empty states ────────────────────────────────────────────────── */
 
 .waiting-state {
   display: grid;
@@ -554,14 +733,40 @@ code {
   text-align: center;
 }
 
+.empty-card {
+  margin-top: 1rem;
+  padding: 1.5rem 2rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
 .orb {
   width: 8rem;
   height: 8rem;
   border-radius: 999px;
-  background: radial-gradient(circle, var(--cyan), var(--violet) 62%, transparent 64%);
+  background: radial-gradient(circle, var(--tan), var(--clay) 62%, transparent 64%);
   filter: blur(1px);
   animation: float 3s ease-in-out infinite;
 }
+
+/* ─── Shimmer utility (used on badge-card loading states) ───────────────────── */
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--chip) 0%,
+    var(--panel2) 40%,
+    var(--chip) 80%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: shimmer 1.8s linear infinite !important;
+}
+
+/* ─── Badge card ────────────────────────────────────────────────────────────── */
 
 .badge-card {
   width: min(720px, 100%);
@@ -571,17 +776,15 @@ code {
 .badge-card.collectible {
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(145deg, rgba(124, 92, 255, 0.24), rgba(34, 211, 238, 0.08)),
-    rgba(20, 24, 33, 0.9);
+  background: var(--card);
 }
 
 .badge-card.collectible::before {
   position: absolute;
-  inset: -30%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 38%);
+  inset: 0;
+  background: radial-gradient(circle at 70% 30%, rgba(204, 120, 92, 0.06), transparent 60%);
   content: "";
-  animation: float 6s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .badge-card > * {
@@ -594,18 +797,22 @@ code {
 }
 
 .tagline {
-  color: #cbd5e1;
+  color: var(--muted);
   font-size: 1.35rem;
+  font-style: italic;
 }
 
 blockquote {
   margin: 2rem 0;
-  border-left: 3px solid var(--cyan);
+  border-left: 3px solid var(--clay);
   padding-left: 1rem;
-  color: #e2e8f0;
+  color: var(--ink);
   font-size: 1.35rem;
+  font-style: italic;
   line-height: 1.45;
 }
+
+/* ─── Badge owner + stat bar ────────────────────────────────────────────────── */
 
 .badge-owner,
 .stat-bar {
@@ -613,7 +820,7 @@ blockquote {
   gap: 0.5rem;
   border: 1px solid var(--border);
   border-radius: 1.1rem;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--panel);
   padding: 0.9rem;
 }
 
@@ -631,15 +838,22 @@ blockquote {
 
 .discount-pill {
   margin: 1rem 0;
-  border-color: rgba(34, 211, 238, 0.35);
-  background: rgba(34, 211, 238, 0.12);
-  color: white;
+  border-color: rgba(204, 120, 92, 0.35);
+  background: rgba(204, 120, 92, 0.08);
+  color: var(--ink);
   font-size: 1rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
-.shimmer {
-  animation: shimmer 1.8s linear infinite;
+.soft-cta {
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
 }
+
+/* ─── Keyframe animations ───────────────────────────────────────────────────── */
 
 @keyframes rise {
   from {
@@ -654,28 +868,37 @@ blockquote {
 
 @keyframes pulse {
   to {
-    box-shadow: 0 0 0 12px rgba(34, 197, 94, 0);
+    box-shadow: 0 0 0 12px rgba(204, 120, 92, 0);
   }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 @keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-8px) scale(1.03);
-  }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-8px) scale(1.03); }
 }
+
+/* Spark component animations */
+@keyframes spark-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes spark-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.035); }
+}
+
+/* StatBar fill animation */
+@keyframes stat-bar-grow {
+  from { transform: scaleX(0); }
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
   .dashboard-grid {

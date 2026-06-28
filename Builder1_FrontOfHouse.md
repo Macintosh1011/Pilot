@@ -20,18 +20,18 @@
 
 **Event:** AI Growth Hackathon (Orange Slice × YC). 24h, kickoff Sat 5pm, **judging Sun 5pm**. Repo must be **public on GitHub** for the duration. Name the sponsors in the pitch + README: **OpenAI, Convex, Cursor, fiber.ai, ElevenLabs**.
 
-**Architecture — three roles, one nervous system:**
-- **iPad = the experience node (you).** UI, voice in/out, QR camera, the live demo view, the badge.
-- **Pi 5 = on-device engagement engine (Builder 3).** Local face/engagement model streams `engagement` (approach/attention/state/leave) → you greet + adapt.
-- **Convex = the spine.** Everyone reads/writes Convex; the iPad and Pi never talk directly.
+**Architecture — iPad-first, Convex spine (NO Raspberry Pi):**
+- **iPad = the experience node (you).** UI, voice, **face/engagement via TrueDepth/Vision**, QR; you host the demo product + badge page (built by C) in your WebView.
+- **Convex = the spine (B2).** CRM, scoring, fiber, badge data, dashboard.
+- **The booth = a 3D-printed enclosure (B3)** your iPad sits in.
 
-**THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool just writes a Convex doc (`demoState`); your demo view re-renders from it in <100ms. Deterministic, fast, demo-safe.
+**THE key design rule:** the live demo is **shared state, not browser automation.** GPT's "show the churn board" tool writes a Convex doc (`demoState`); the demo product (C's web app, in your WebView) re-renders in <100ms. Deterministic, fast, demo-safe.
 
-**Hardware reality (what we actually have):** Pi 5, keyboard/mouse, webcam, mic, wires, **iPad**. No LED ring, no printer, no speaker, no monitor. → Audio lives on the **iPad** (its mic + speaker). LED-style "lead quality" is shown **on screen**, not a physical LED. Badge is a **QR on screen** (printer optional).
+**Hardware reality:** just the **iPad** + a 3D-printed booth. No Pi, no webcam, no sensors. Audio + cameras (TrueDepth for engagement, camera for QR) are all on the iPad. "Lead quality" shows on screen; badge is a QR on screen.
 
-**Team map:** B1 (you) = front of house · B2 = brain (Convex/AI/fiber/badge/dashboard) · B3 = physical + integration/reliability lead.
+**Team map:** B1 (you) = front of house · B2 = brain (Convex/AI/fiber/badge data/dashboard) · B3 = booth enclosure + demo product + badge page + reliability.
 
-**Checkpoints:** ★**h4** end-to-end stub works · ★**h12** full loop + engagement-driven greet + badge. `main` stays demoable.
+**Checkpoints:** ★**h4** end-to-end stub works · ★**h12** full loop + TrueDepth greet + badge. `main` stays demoable.
 
 ---
 
@@ -42,12 +42,12 @@ You own **everything the visitor sees and hears.** The polished surface that win
 ### What you own
 - The **iPad app**: a thin native shell (Swift) wrapping a **WKWebView** that hosts the real UI as web. Keep native to the minimum: Guided Access kiosk lock, keep-awake, mic/camera permissions.
 - The **voice loop**: Whisper (STT) → GPT (LLM, tool-calling) → ElevenLabs (TTS), streaming, with VAD turn-taking and barge-in.
-- The **LinkedIn QR scan** (camera) → writes `linkedinUrl`.
-- The **live demo view** ("Acme Analytics") — reactive to `demoState`.
-- The **badge page** (`/badge/[sessionId]`) — renders `sessions.badge` + share action.
+- **Face/engagement via TrueDepth/Vision**: greet on approach, re-hook when engagement drops, wrap on leave; write `engagement` to Convex.
+- The **LinkedIn QR scan** (camera) → writes `linkedinUrl`. (Time-share with the front cam or use the rear cam, since TrueDepth is busy with engagement.)
+- **Host C's web surfaces** in the WebView: the demo product (reactive to `demoState`) and the badge page. You don't build them — you load and frame them natively.
 
 ### Definition of done
-A visitor talks to the iPad, watches their use case demoed live on screen, and walks away with a shareable Booth Badge (QR). Works start-to-finish from the iPad alone (so a Pi failure can't sink the demo).
+A visitor talks to the iPad, gets greeted/adapted via TrueDepth, watches their use case demoed live, and walks away with a shareable Booth Badge (QR). Runs entirely on the iPad.
 
 ### Why web-in-a-WebView (important)
 WKWebView supports `getUserMedia` (iOS 14.3+), so the **entire voice loop and UI can be web** — built fast in TypeScript, rendered in the WebView. Native is only the shell + a fallback if WebView audio gets flaky. This keeps your surface small and lets the team help in a stack everyone knows.
@@ -66,10 +66,10 @@ You **call Builder 2's Convex functions** when GPT emits a tool call, and you **
 | GPT tool `set_needs` / `capture_contact` | call mutations B2 provides |
 | GPT tool `finalize_session` | call action `finalize(sessionId)` → B2 scores + badge + email draft |
 | Render the demo | **subscribe** to `demoState` query → re-render |
-| Greet + adapt | **subscribe** to `engagement` query (B3 posts it): greet on `approach`, re-hook when `state` drops, wrap on `leave` |
+| Greet + adapt | **you produce `engagement`** (TrueDepth/Vision): greet on `approach`, re-hook when `state` drops, wrap on `leave`; write it to Convex for the dashboard |
 | Render badge | read `sessions.badge` (set by B2) |
 
-**Mock while B2 builds:** hand-write a `demoState` doc in the Convex dashboard so you can build the demo view before the agent exists.
+**Mock while building:** point the WebView at C's demo product / badge page running locally; hand-write a `demoState` doc in Convex to see it react before the agent exists.
 
 ---
 
@@ -82,15 +82,15 @@ You **call Builder 2's Convex functions** when GPT emits a tool call, and you **
 - [ ] VAD for turn-taking; **barge-in** (stop TTS the moment the visitor speaks).
 - [ ] Wire GPT tool-calls → B2's Convex functions (table above).
 - [ ] Camera **LinkedIn QR scan** → `linkedinUrl`.
-- [ ] Demo view "Acme Analytics" (home/churn/alerts/pricing/query-result) reactive to `demoState`.
+- [ ] Host C's demo product + badge page in the WebView (load, frame, transitions).
 - [ ] Badge page + Share (LinkedIn/X) + "see your teammates'" CTA.
-- [ ] Greet flow triggered by `engagement` (approach); feed `state`/`attention`/`expression` into the GPT prompt so it re-hooks a wavering visitor and wraps on `leave`.
+- [ ] Face/engagement via **TrueDepth/Vision** → greet on approach; feed `state`/`attention`/`expression` into the GPT prompt to re-hook; wrap on `leave`; write `engagement` to Convex.
 - [ ] Stage polish: big readable type, transitions, "lead-quality" color on screen.
 
 ## Your hour-by-hour
 - **h0–2:** Xcode shell + WebView, Convex client, mic → Whisper echo.
 - **h2–4:** full voice loop audible (Whisper→GPT→ElevenLabs). → **★h4 stub demo**.
-- **h4–8:** QR scan; demo view driven by `demoState`; greet handling.
+- **h4–8:** QR scan; host C's demo product (driven by `demoState`); TrueDepth greet + re-hook.
 - **h8–12:** badge page + share; conversation polish; barge-in. → **★h12**.
 - **h12–17:** latency tuning (<1.5s), Guided Access kiosk, visual polish.
 - **h17→judging:** rehearse 3×, charge iPad, pre-warm APIs.

@@ -66,7 +66,7 @@ enum Demo {
 }
 
 /// Drives the booth through its states. With Convex + a Vapi public key configured it runs
-/// LIVE: presence triggers the greet, the voice loop drives the spark + caption, GPT
+/// LIVE: a tap starts the greet, the voice loop drives the spark + caption, GPT
 /// tool calls write `demoState`, and the finished badge comes from Convex. With no
 /// secrets it runs the hands-free offline demo (canned beats; tap to skip forward).
 @MainActor
@@ -79,6 +79,9 @@ final class Director: ObservableObject {
     /// One Convex client for the app lifetime. Always present (real deployment URL baked into
     /// `BoothConfig`); its calls no-op cleanly when offline, so the booth never stalls.
     let backend = BoothBackend()
+    /// Single front-camera session shared by the QR screen and the conversation PiP, so the
+    /// preview never restarts between screens. Owned here for the app lifetime (live mode).
+    let camera = FrontCameraSession()
     /// Live voice loop — nil unless a Vapi public key is configured. `nil` ⇒ scripted Phase 1.
     let voice: VapiVoice?
     private var cancellables = Set<AnyCancellable>()
@@ -90,27 +93,24 @@ final class Director: ObservableObject {
 
     init() {
         voice = VapiVoice(backend: backend)
-        // Republish backend changes so the Badge screen re-renders when the live card arrives.
+        // Republish backend + camera changes so dependent screens re-render (live card, camera ready).
         backend.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
+        camera.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
         if live {
-            backend.startWatchingPresence()
             observeLive()
         }
-        applyLaunchScreen()
+        // Live opens straight on the QR scanner — no attract/greeting intro. Scripted keeps attract.
+        if !applyLaunchScreen() && live {
+            DispatchQueue.main.async { self.goTo(.qr) }
+        }
     }
 
     private func observeLive() {
         guard let voice else { return }
         voice.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
 
-        backend.$presenceEvent.compactMap { $0 }.receive(on: RunLoop.main).sink { [weak self] event in
-            guard let self else { return }
-            if event == "approach", self.screen == .attract { self.goTo(.greeting) }
-            if event == "leave" { self.voice?.stop(); self.goTo(.attract) }
-        }.store(in: &cancellables)
-
         voice.$finalized.filter { $0 }.receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.goTo(.badge) }.store(in: &cancellables)
+            .sink { [weak self] _ in if self?.screen != .badge { self?.goTo(.badge) } }.store(in: &cancellables)
 
         backend.$liveSession.compactMap { $0?.badge }.receive(on: RunLoop.main)
             .sink { [weak self] _ in if self?.screen != .badge { self?.goTo(.badge) } }.store(in: &cancellables)
@@ -119,24 +119,32 @@ final class Director: ObservableObject {
     /// Dev: `simctl launch … -screen badge [-beat 6]` boots straight into a frozen screen.
     /// `-autostart` instead runs the full scripted flow from attract (greet → … → badge) hands-free,
     /// useful for a headless demo loop or verifying the live backend drive end to end.
-    private func applyLaunchScreen() {
+    /// Returns true if a launch argument took control of the initial screen.
+    @discardableResult
+    private func applyLaunchScreen() -> Bool {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-autostart") {
             DispatchQueue.main.async { self.goTo(.greeting) }
-            return
+            return true
         }
-        guard let i = args.firstIndex(of: "-screen"), i + 1 < args.count else { return }
+        guard let i = args.firstIndex(of: "-screen"), i + 1 < args.count else { return false }
         let map: [String: Screen] = [
             "attract": .attract, "greeting": .greeting, "conversation": .conversation,
             "qr": .qr, "badge": .badge,
         ]
-        guard let s = map[args[i + 1]] else { return }
+        guard let s = map[args[i + 1]] else { return false }
         screen = s
         if let j = args.firstIndex(of: "-beat"), j + 1 < args.count, let b = Int(args[j + 1]) {
             beat = b
         } else if s == .conversation {
             beat = lastBeat
         }
+        return true
+    }
+
+    /// Idempotent — starts the shared front camera once, routing scans to the agent flow.
+    private func startCameraIfNeeded() {
+        camera.start(onCode: { [weak self] in self?.captureLinkedIn($0) })
     }
 
     var current: Beat { Demo.beats[min(beat, Demo.beats.count - 1)] }
@@ -191,9 +199,13 @@ final class Director: ObservableObject {
         schedule(for: s)
     }
 
-    /// Tap anywhere — advance the story (offline demo only; live is driven by voice/presence).
+    /// Tap to drive the booth. Live is fully voice + scan driven and opens on the QR scanner, so
+    /// background taps do nothing (the badge has its own restart control). Scripted advances on tap.
     func tap() {
-        guard !live else { return }
+        if live {
+            if screen == .attract { goTo(.qr) }
+            return
+        }
         switch screen {
         case .attract: goTo(.greeting)
         case .greeting: goTo(.qr)
@@ -204,21 +216,64 @@ final class Director: ObservableObject {
         }
     }
 
-    /// A scanned LinkedIn QR — enrich straight off the profile (INTERFACES.md §1.5).
+    /// A scanned LinkedIn QR — enrich the session and (in live mode) nudge the agent to greet.
+    /// In scripted mode, navigates to the conversation screen as before.
+    /// Guard prevents double-scan from re-firing.
     func captureLinkedIn(_ url: String) {
+        guard linkedInURL == nil else { return }
         linkedInURL = url
         Task { await backend.lookupVisitor(linkedinUrl: url) }
-        goTo(.conversation)
+        if live {
+            // Server-side lookupVisitor injects the identity; this nudge prompts the agent to
+            // greet by name. Move off the QR scanner into the live demo.
+            voice?.noteScannedLinkedIn()
+            if screen == .qr { goTo(.conversation) }
+        } else {
+            goTo(.conversation)
+        }
+    }
+
+    /// Live "next visitor" reset (from the badge): tear down the session + voice, re-arm the
+    /// camera, and reopen the QR scanner. Scripted returns to its attract loop.
+    func restart() {
+        if live {
+            voice?.stop()
+            backend.reset()
+            linkedInURL = nil
+            camera.rearm()
+            goTo(.qr)
+        } else {
+            goTo(.attract)
+        }
     }
 
     private func schedule(for s: Screen) {
         if live {
             switch s {
+            case .qr:
+                // The live entry point: webcam scanner up, session created, voice asking for the QR.
+                voice?.prepare()
+                linkedInURL = nil
+                startCameraIfNeeded()
+                camera.rearm()
+                Task { [weak self] in
+                    guard let self else { return }
+                    if self.backend.sessionId == nil { await self.backend.createSession() }
+                    self.voice?.start(sessionId: self.backend.sessionId)
+                }
             case .greeting:
-                Task { await backend.createSession() }
-                after(2.5) { self.goTo(.conversation) }
-            case .conversation: voice?.start(sessionId: backend.sessionId)
-            default: break // attract waits for presence; badge stays until leave/new approach
+                // Legacy `-autostart` path only — normal launch opens on .qr.
+                voice?.prepare()
+                Task { [weak self] in
+                    guard let self else { return }
+                    await self.backend.createSession()
+                    try? await Task.sleep(for: .seconds(1.8))
+                    if self.screen == .greeting { self.goTo(.conversation) }
+                }
+            case .conversation:
+                startCameraIfNeeded()
+                voice?.start(sessionId: backend.sessionId)
+            default: break // attract + badge wait for a tap
             }
             return
         }

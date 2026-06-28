@@ -64,11 +64,19 @@ export const finalize = action({
       useCase: session?.useCase,
       demoShown: session?.demoShown ?? [],
     };
+    // Write the deterministic badge immediately so the iPad shows a real badge with no wait.
+    // The OpenAI job below will overwrite it with the LLM-quality version when it lands.
+    const previewQualify = fallbackQualify(session, transcript);
+    const previewBadge = fallbackBadge(sessionId, session, transcript, previewQualify);
+    await ctx.runMutation(internal.sessions.patchCard, {
+      sessionId,
+      patch: { badge: previewBadge },
+    });
+
     const jobId = await ctx.runMutation(internal.finalize.createFinalizeJob, {
       sessionId,
       input,
     });
-
     await ctx.scheduler.runAfter(60_000, internal.finalize.fallbackFinalize, {
       sessionId,
       jobId,
@@ -78,8 +86,6 @@ export const finalize = action({
       jobId,
     });
 
-    const previewQualify = fallbackQualify(session, transcript);
-    const previewBadge = fallbackBadge(sessionId, session, transcript, previewQualify);
     return {
       ok: true,
       confidence: previewQualify.confidence,

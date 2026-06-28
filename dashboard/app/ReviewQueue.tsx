@@ -3,7 +3,10 @@
 import { api } from "@cvx/_generated/api";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { Card } from "./components/Panel";
 import type { Id, Session } from "./types";
+import styles from "./ReviewQueue.module.css";
 
 type DraftState = {
   subject: string;
@@ -92,69 +95,132 @@ function ReviewItem({ session }: { session: Session }) {
   }
 
   return (
-    <article className="review-item">
-      <div className="review-topline">
+    <Card padding="1.5rem" className={styles.draftCard}>
+      {/* Visitor identity + status chips */}
+      <div className={styles.draftHeader}>
         <div>
           <p className="eyebrow">To review</p>
-          <h3>{session.visitorName ?? "Unknown visitor"}</h3>
+          <h3 className={styles.visitorName}>{session.visitorName ?? "Unknown visitor"}</h3>
           <p className="muted">
             {session.role ?? "Role unknown"} · {session.company ?? "Company unknown"}
           </p>
         </div>
-        <div className="review-metrics">
+        <div className={styles.metricChips}>
           <span className="score-pill">{session.confidence ?? 0}% confidence</span>
           <span className={`urgency-pill ${session.urgency ?? "low"}`}>
             {session.urgency ?? "low"} urgency
           </span>
+          {/* review-pill global classes carry the correct warning/success/clay colors */}
           <span className={`review-pill ${session.reviewStatus ?? "pending"}`}>
             {session.reviewStatus ?? "pending"}
           </span>
         </div>
       </div>
 
-      <p className="to-line">
-        To: <strong>{session.email ?? "no contact email"}</strong>
+      <div className={styles.draftSep} role="separator" />
+
+      {/* To: line — letter header feel */}
+      <p className={styles.toLine}>
+        <span className={styles.toLabel}>To</span>
+        <strong>{session.email ?? "no contact email"}</strong>
       </p>
 
+      {/* Editable draft — subject + body in serif; labels in mono via .draft-form */}
       <form className="draft-form" onSubmit={saveEdits}>
         <label>
           Subject
           <input
             value={draft.subject}
-            onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, subject: event.target.value }))
+            }
             placeholder="Follow-up subject"
           />
         </label>
         <label>
           Body
           <textarea
+            className={styles.letterBody}
             value={draft.body}
-            onChange={(event) => setDraft((current) => ({ ...current, body: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, body: event.target.value }))
+            }
             placeholder="Draft body"
-            rows={7}
+            rows={9}
           />
         </label>
 
         <div className="review-actions">
-          <button type="button" onClick={approveDraft} disabled={isPending || !session.emailDraft}>
+          {/* Approve: clay fill — inline style overrides the .review-actions button ink default */}
+          <button
+            type="button"
+            onClick={approveDraft}
+            disabled={isPending || !session.emailDraft}
+            style={{ background: "var(--clay)", color: "var(--paper)" }}
+          >
             Approve
           </button>
           <button type="submit" disabled={isPending || !draft.subject || !draft.body}>
             Save edits
           </button>
-          <button type="button" className="ghost-button" onClick={discardDraft} disabled={isPending}>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={discardDraft}
+            disabled={isPending}
+          >
             Discard
           </button>
-          <button type="button" className="send-button" onClick={sendDraft} disabled={isPending || !canSend}>
+          {/* Send: clay via .send-button global class */}
+          <button
+            type="button"
+            className="send-button"
+            onClick={sendDraft}
+            disabled={isPending || !canSend}
+          >
             Send
           </button>
         </div>
       </form>
 
-      {!session.email ? <p className="warning-copy">Send is disabled because this lead has no email.</p> : null}
-      {session.sentAt ? <p className="success-copy">Sent {formatTime(session.sentAt)}</p> : null}
-      {message ? <p className="status-copy">{message}</p> : null}
-    </article>
+      {!session.email && (
+        <p className={`warning-copy ${styles.statusMsg}`}>
+          Send is disabled because this lead has no email.
+        </p>
+      )}
+      {session.sentAt ? (
+        <p className={`success-copy ${styles.statusMsg}`}>Sent {formatTime(session.sentAt)}</p>
+      ) : null}
+      {message ? <p className={`status-copy ${styles.statusMsg}`}>{message}</p> : null}
+    </Card>
+  );
+}
+
+// Compact summary row used when embedded in the home-page right rail.
+// No textareas, no action buttons — just identity, chips, subject, and a link.
+function EmbeddedRow({ session }: { session: Session }) {
+  return (
+    <div className={styles.embeddedRow}>
+      <div className={styles.embeddedTop}>
+        <span className={styles.embeddedName}>
+          {session.visitorName ?? "Unknown visitor"}
+        </span>
+        <div className={styles.embeddedChips}>
+          <span className="score-pill">{session.confidence ?? 0}%</span>
+          <span className={`urgency-pill ${session.urgency ?? "low"}`}>
+            {session.urgency ?? "low"}
+          </span>
+        </div>
+      </div>
+      <div className={styles.embeddedBottom}>
+        <span className={styles.embeddedSubject}>
+          {session.emailDraft?.subject ?? "Draft pending"}
+        </span>
+        <Link href="/review" className="review-link">
+          Review →
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -169,14 +235,27 @@ export default function ReviewQueue({ embedded = false }: { embedded?: boolean }
           <p className="eyebrow">Human review</p>
           <h2>Follow-up queue</h2>
         </div>
-        <span className="queue-count">{queue === undefined ? "syncing" : `${queue.length} waiting`}</span>
+        <span className="queue-count">
+          {queue === undefined ? "syncing" : `${queue.length} waiting`}
+        </span>
       </div>
-      <p className="guardrail-copy">No emails are ever sent automatically. Approve or save edits, then send.</p>
+
+      {!embedded && (
+        <p className={styles.guardrailNote}>
+          No emails are sent automatically — approve or save edits first, then send.
+        </p>
+      )}
 
       {queue === undefined ? (
         <div className="skeleton-block">Loading review queue...</div>
       ) : sortedQueue.length === 0 ? (
         <div className="empty-card">No drafts need review right now.</div>
+      ) : embedded ? (
+        <div className={styles.embeddedList}>
+          {sortedQueue.map((session) => (
+            <EmbeddedRow key={session._id as Id<"sessions">} session={session} />
+          ))}
+        </div>
       ) : (
         <div className="review-list">
           {sortedQueue.map((session) => (
