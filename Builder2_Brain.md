@@ -69,7 +69,7 @@ You **provide** functions B1 calls + HTTP actions B3 calls.
 | `captureContact({email,phone,linkedinUrl})` | mutation | writes card |
 | `finalize(sessionId)` | action | scoring → badge → email draft |
 
-**HTTP actions you expose to B3 (the Pi):** `GET /hw/poll`, `POST /hw/ack`, `POST /hw/presence`.
+**HTTP actions you expose to B3 (the Pi):** `POST /hw/presence {deviceId, event, distanceCm, personSeen}` (B3 fuses ultrasonic + webcam → writes the `presence` table the iPad subscribes to). `GET /hw/poll`, `POST /hw/ack` are reserved but unused in this build (no Pi actuators).
 
 **Mock while teammates build:** seed dummy `sessions`/`demoState` so B1 can build UI and B3 can post presence before your pipeline is done. Stub fiber with a canned payload until the key works.
 
