@@ -22,40 +22,42 @@ export type BoothToolContext = {
   onPhotoFlash: () => void;
 };
 
-const accountSchema = z.object({
-  name: z.string(),
-  mrr: z.string(),
-  signal: z.string(),
-  risk: z.string(),
+const topicSchema = z.object({
+  topic: z.string(),
+  share: z.string(),
+  trend: z.string(),
+});
+
+const escalationSchema = z.object({
+  question: z.string(),
+  reason: z.string(),
 });
 
 const viewParamsSchema = z.object({
   // Universal — powers the "LIVE · {company}" chip on every view
   company: z.string().nullable().optional(),
-  // churn view
-  netMrr: z.string().nullable().optional(),
-  churnRate: z.string().nullable().optional(),
-  mrrAtRisk: z.string().nullable().optional(),
+  // query-result view — the hero demo: a real customer question answered instantly
+  question: z.string().nullable().optional(),
+  answer: z.string().nullable().optional(),
+  sources: z.string().nullable().optional(),
+  // churn / impact view — deflection metrics
+  ticketVolume: z.string().nullable().optional(),
+  deflectionRate: z.string().nullable().optional(),
+  firstResponse: z.string().nullable().optional(),
+  csat: z.string().nullable().optional(),
+  hoursSaved: z.string().nullable().optional(),
   series: z.string().nullable().optional(),
-  headline: z.string().nullable().optional(),
-  accounts: z.array(accountSchema).nullable().optional(),
-  period: z.string().nullable().optional(),
-  cohort: z.string().nullable().optional(),
-  // alerts view
+  topTopics: z.array(topicSchema).nullable().optional(),
+  // alerts view — escalations and doc gaps
   severity: z.string().nullable().optional(),
+  escalations: z.array(escalationSchema).nullable().optional(),
   // integrations view
-  techStack: z.string().nullable().optional(),
+  tools: z.string().nullable().optional(),
   // pricing view
   plan: z.string().nullable().optional(),
-  employeeCount: z.string().nullable().optional(),
-  // query-result view
-  query: z.string().nullable().optional(),
-  columns: z.string().nullable().optional(),
-  rows: z.string().nullable().optional(),
+  agents: z.string().nullable().optional(),
   // home view
   role: z.string().nullable().optional(),
-  // legacy — kept for backward compat
-  provider: z.string().nullable().optional(),
 });
 
 // Turn the enriched card into a short briefing the agent can weave in (never read aloud raw).
@@ -153,7 +155,7 @@ export function buildBoothTools(ctx: BoothToolContext) {
   const showView = tool({
     name: "show_view",
     description:
-      "Drive the on-screen Acme Analytics demo to the view that best matches the visitor's stated problem. Pass their OWN numbers as display strings in params to make the dashboard theirs.",
+      "Drive the on-screen Quill demo to the view that best matches the visitor's stated problem. Pass their OWN support numbers as display strings in params to make the dashboard theirs. Views: query-result = hero live-answer demo (a real customer question answered instantly with cited sources); churn = IMPACT dashboard (deflection rate, ticket volume, response time, CSAT); alerts = escalations and doc gaps; integrations = connect their support sources; pricing = plans; home = greeting or recap.",
     parameters: z.object({
       view: z.enum(["home", "churn", "alerts", "pricing", "integrations", "query-result"]),
       params: viewParamsSchema.nullable().optional(),

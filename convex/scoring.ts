@@ -57,9 +57,10 @@ export const QUALIFY_JSON_SCHEMA = {
   },
 };
 
-const SCORING_SYSTEM = `You are a B2B sales qualification analyst for Acme Analytics. Acme's ICP: seed-to-Series-B
-B2B SaaS / dev-tool teams (roughly 10-300 employees) that care about user retention,
-activation, and product metrics. Score this booth conversation.
+const SCORING_SYSTEM = `You are a B2B sales qualification analyst for Quill. Quill's ICP: seed-to-Series-B
+B2B SaaS companies (roughly 10-300 employees) with a support or CX function — support leads,
+CX directors, and founders who are drowning in repetitive tickets and want to deflect volume,
+cut first-response time, and keep CSAT high without growing headcount. Score this booth conversation.
 
 Rubric (max points): icpFit 30, intent 25, engagement 20, authority 15, demoDepth 10.
 - icpFit: how well the company (from fiber: industry, size, stage) matches the ICP. If
@@ -68,13 +69,13 @@ Rubric (max points): icpFit 30, intent 25, engagement 20, authority 15, demoDept
 - intent: explicit buying/evaluation language ("we're evaluating", "budget approved",
   "switching off X") scores high; idle curiosity scores low.
 - engagement: number of substantive visitor turns and follow-up questions.
-- authority: decision power from role/seniority (founder/VP/Head high; IC/student low).
+- authority: decision power from role/seniority (founder/VP/Head/Support Lead high; IC/student low).
 - demoDepth: how many demo views they engaged with and how specific they got.
 Set confidence to the exact sum of the five factors. Give 2-4 short, plain-English
 reasons, each tied to a factor and citing a concrete detail (prefix with the factor, e.g.
-"ICP fit 28/30: Series B B2B SaaS, dead-center target."). Pick urgency from transcript
+"ICP fit 28/30: Series B B2B SaaS, support team of 8, dead-center target."). Pick urgency from transcript
 cues and quote the strongest evidence. bestAngle = the single sharpest angle a human rep
-should lead with in follow-up. Output ONLY the structured object.`;
+should lead with in follow-up (e.g. the specific support pain: deflection, response time, doc gaps, CSAT). Output ONLY the structured object.`;
 
 export const qualify = internalAction({
   args: { sessionId: v.id("sessions") },
@@ -160,8 +161,8 @@ export function fallbackQualify(
         /asap|quarter|urgent|now|deadline|soon/i.test(t),
       ) ?? "",
     bestAngle: `Lead with ${
-      session.problems?.[0] ?? "their stated problem"
-    } and the ${session.demoShown?.[0] ?? "churn"} view they saw.`,
+      session.problems?.[0] ?? "their stated support pain"
+    } and the ${session.demoShown?.[0] ?? "deflection"} view they saw.`,
   };
 }
 

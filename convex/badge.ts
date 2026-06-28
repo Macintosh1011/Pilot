@@ -13,21 +13,21 @@ export type Badge = {
 };
 
 const ARCHETYPES = [
-  ["The Churn Whisperer", "Hears the goodbye before they say it.", "CW"],
-  ["The Retention Renegade", "Refuses to let good users walk.", "RR"],
-  ["The Activation Architect", "Builds the aha-moment on purpose.", "AA"],
-  ["The North-Star Navigator", "Steers the whole team by one true metric.", "NS"],
-  ["The Cohort Cartographer", "Maps every user journey by the week they joined.", "CC"],
-  ["The Funnel Mechanic", "Finds the leak, tightens the bolt.", "FM"],
-  ["The Signal Hunter", "Catches the metric move before the dashboard does.", "SH"],
-  ["The Attribution Alchemist", "Turns messy touchpoints into clean credit.", "AT"],
-  ["The Revenue Archaeologist", "Digs expansion revenue out of old accounts.", "RA"],
-  ["The Onboarding Sherpa", "Gets every new user to the summit.", "OS"],
-  ["The Data Custodian", "Trusts the numbers because they cleaned them.", "DC"],
-  ["The Pipeline Plumber", "Keeps the whole data flow leak-free.", "PP"],
-  ["The Dashboard Dragon", "Hoards every metric that matters.", "DD"],
-  ["The Zero-to-One Operator", "Wears every hat, ships every week.", "ZO"],
-  ["The Self-Serve Sommelier", "Pairs each question with the perfect query.", "SS"],
+  ["The Ticket Tamer", "Turns the queue into a quiet hum.", "TT"],
+  ["The Docs Whisperer", "Every answer already lived in your docs.", "DW"],
+  ["The Deflection Champion", "Half the tickets never reach a human.", "DC"],
+  ["The First-Response Hero", "Replies before the coffee cools.", "FR"],
+  ["The Escalation Closer", "Hands humans only the hard ones.", "EC"],
+  ["The Self-Serve Architect", "Customers who answer themselves.", "SS"],
+  ["The Knowledge Keeper", "One source of truth, finally.", "KK"],
+  ["The Queue Whisperer", "Calm in the busiest inbox.", "QW"],
+  ["The Auto-Resolver", "Resolved before it's even assigned.", "AR"],
+  ["The CSAT Guardian", "Happy customers at 2am.", "CG"],
+  ["The Backlog Slayer", "The backlog never stood a chance.", "BS"],
+  ["The Macro Maestro", "Right answer, every channel.", "MM"],
+  ["The Always-On Concierge", "Support that never sleeps.", "AO"],
+  ["The Resolution Engineer", "Turns chaos into closed tickets.", "RE"],
+  ["The Support Strategist", "Sees the question behind the question.", "ST"],
 ] as const;
 
 const BADGE_JSON_SCHEMA = {
@@ -56,7 +56,8 @@ const BADGE_JSON_SCHEMA = {
   },
 };
 
-const BADGE_SYSTEM = `Create a public Booth Badge for an Acme Analytics booth visitor.
+const BADGE_SYSTEM = `Create a public Booth Badge for a Quill booth visitor.
+Quill is an AI customer-support agent that deflects tickets, answers customers from their docs, and escalates the hard cases to humans.
 Pick exactly one archetype from the supplied curated list. Do not invent archetypes.
 The compliment MUST quote or closely paraphrase a real thing the visitor said in the transcript.
 Make it witty, niche, specific, and B2B-insider. Never be saccharine, never be backhanded.
@@ -107,11 +108,11 @@ export function fallbackBadge(
     session?.problems?.[0] ??
     session?.useCase ??
     visitorText(transcript)[0] ??
-    "your retention problem";
+    "your support volume problem";
   const badge: Badge = {
     archetype,
     tagline,
-    compliment: `Loved how clearly you framed "${problem}" — that's exactly the muscle Acme builds.`,
+    compliment: `Loved how clearly you framed "${problem}" — that's exactly what Quill is built to solve.`,
     stats: defaultStats(archetype, q),
     discountCode: "",
   };
@@ -163,29 +164,31 @@ function pickArchetype(session: any) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  if (/churn|retention|renewal/.test(text)) return "The Churn Whisperer";
-  if (/alert|threshold|metric move/.test(text)) return "The Signal Hunter";
-  if (/query|self-serve|sql|analyst/.test(text)) return "The Self-Serve Sommelier";
-  if (/pricing|integration|instrument|launch/.test(text)) {
-    return "The Zero-to-One Operator";
-  }
-  return "The North-Star Navigator";
+  if (/deflect|deflection|volume|ticket count/.test(text)) return "The Deflection Champion";
+  if (/doc|knowledge base|source of truth|help center/.test(text)) return "The Docs Whisperer";
+  if (/escalat/.test(text)) return "The Escalation Closer";
+  if (/response time|first response|sla|speed/.test(text)) return "The First-Response Hero";
+  if (/csat|satisfaction|happy customer/.test(text)) return "The CSAT Guardian";
+  if (/backlog|queue|overload|overwhelm/.test(text)) return "The Backlog Slayer";
+  return "The Support Strategist";
 }
 
 function defaultStats(archetype: string, q: Qualify) {
   const first =
-    archetype === "The Churn Whisperer"
-      ? "Churn IQ"
-      : archetype === "The Self-Serve Sommelier"
-        ? "Query Fluency"
-        : archetype === "The Signal Hunter"
-          ? "Signal Sense"
-          : "Operator Energy";
+    archetype === "The Deflection Champion"
+      ? "Deflection IQ"
+      : archetype === "The Docs Whisperer"
+        ? "Doc Coverage"
+        : archetype === "The First-Response Hero"
+          ? "Speed Score"
+          : archetype === "The CSAT Guardian"
+            ? "CSAT Drive"
+            : "Support Vision";
   return mirrorStats(
     [
       { label: first, value: 0 },
-      { label: "Growth Velocity", value: 0 },
-      { label: "Signal Strength", value: 0 },
+      { label: "Automation Readiness", value: 0 },
+      { label: "Resolution Strength", value: 0 },
     ],
     q,
   );
@@ -227,7 +230,7 @@ function visitorText(transcript: { role: string; text: string }[]) {
 
 function discountCode(sessionId: string, archetype: string) {
   const { tag } = archetypeMeta(archetype);
-  return `ACME-${tag}-${base32Hash(sessionId).slice(0, 4)}`;
+  return `QUILL-${tag}-${base32Hash(sessionId).slice(0, 4)}`;
 }
 
 function archetypeMeta(archetype: string) {

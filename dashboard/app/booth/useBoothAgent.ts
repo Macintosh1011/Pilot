@@ -171,14 +171,15 @@ export function useBoothAgent(opts: {
         audio: {
           input: {
             transcription: { model: "gpt-4o-mini-transcribe" },
-            // Noisy booth: energy-gated VAD with a high threshold ignores quieter/distant
-            // chatter, a longer silence window waits for a real pause, and
-            // interruptResponse:false stops bystanders from cutting the agent off mid-sentence.
+            // Booth on laptop speakers: only a loud, sustained, close utterance should register
+            // a turn. A high threshold + long prefix/silence keeps residual echo and small
+            // sounds from truncating the agent, and interruptResponse:false means detected
+            // speech never cancels the agent's reply — it always finishes its sentence.
             turnDetection: {
               type: "server_vad",
-              threshold: 0.65,
-              prefixPaddingMs: 300,
-              silenceDurationMs: 700,
+              threshold: 0.85,
+              prefixPaddingMs: 500,
+              silenceDurationMs: 1100,
               interruptResponse: false,
             },
             noiseReduction: { type: "near_field" },

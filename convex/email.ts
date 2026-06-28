@@ -15,13 +15,14 @@ const EMAIL_JSON_SCHEMA = {
   },
 };
 
-const EMAIL_SYSTEM = `Draft a short, warm post-booth follow-up email from the Acme Analytics team to a visitor.
-Reference (a) the exact demo view they saw and (b) the specific problem they described, in
+const EMAIL_SYSTEM = `Draft a short, warm post-booth follow-up email from the Quill team to a visitor.
+Quill is an AI customer-support agent that deflects tickets, answers customers from their docs, and escalates the hard cases to humans with full context.
+Reference (a) the exact demo view they saw and (b) the specific support pain they described (ticket volume, response time, deflection, docs gaps, escalations, CSAT), in
 their words. One clear, soft next step (a quick call or a sandbox), never pushy. 90-150
 words. Plain, human, founder-to-operator tone. No emoji, no hype, no fake stats. Sign off
-as "— The Acme Analytics team". You may include their discount code once, naturally.`;
+as "— The Quill team". You may include their discount code once, naturally.`;
 
-const DEFAULT_RESEND_FROM = "Acme Analytics <onboarding@resend.dev>";
+const DEFAULT_RESEND_FROM = "Quill <onboarding@resend.dev>";
 
 const sendResultValidator = v.union(
   v.object({ ok: v.literal(true), error: v.optional(v.string()) }),
@@ -163,17 +164,17 @@ function validateEmailDraft(value: unknown): EmailDraft | null {
 
 export function fallbackEmail(session: any): EmailDraft {
   const name = session?.visitorName ? ` ${session.visitorName}` : "";
-  const problem = session?.problems?.[0] ?? session?.useCase ?? "your product analytics goals";
-  const view = session?.demoShown?.[0] ?? "churn";
-  const code = session?.badge?.discountCode ?? "ACME-DEMO";
+  const problem = session?.problems?.[0] ?? session?.useCase ?? "your support volume";
+  const view = session?.demoShown?.[0] ?? "deflection";
+  const code = session?.badge?.discountCode ?? "QUILL-DEMO";
   return {
-    subject: `Your ${view} demo in Acme — quick follow-up from the booth`,
+    subject: `Your ${view} demo in Quill — quick follow-up from the booth`,
     body: `Hi${name},
 
-Great talking at the booth about ${problem}. The ${view} view you saw is built to make that problem easier to spot, explain, and act on without waiting on another dashboard cycle.
+Great talking at the booth about ${problem}. The ${view} view you saw is exactly how Quill turns that problem into answered tickets, without your team touching them.
 
-Worth a quick look with your own data, or should we send over a sandbox? Your booth code ${code} takes 25% off year one.
+Worth a quick look with your own docs and help center, or should we spin up a sandbox? Your booth code ${code} takes 25% off year one.
 
-— The Acme Analytics team`,
+— The Quill team`,
   };
 }

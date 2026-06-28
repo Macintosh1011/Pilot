@@ -2,7 +2,7 @@ import type { Id } from "@cvx/_generated/dataModel";
 import DemoPageClient from "./DemoPageClient";
 
 export const metadata = {
-  title: "Acme Analytics Demo",
+  title: "Quill Demo",
 };
 
 export default async function DemoPage({

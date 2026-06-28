@@ -151,14 +151,11 @@ export function BoothKiosk() {
   const params = (demo?.params as DemoParams | undefined) ?? undefined;
   const highlight = demo?.highlight ?? undefined;
 
-  // The company UI stays hidden until the agent has actually figured out what the
-  // visitor wants — needs scoped (problems/useCase) AND a view chosen. Until then the
-  // center is a warm "getting to know you" moment with the visitor on camera.
-  const understood = !!(
-    session &&
-    ((session.problems?.length ?? 0) > 0 || session.useCase)
-  );
-  const showCompany = understood && !!view;
+  // Show the company UI whenever the agent has chosen a view (called show_view). The agent's
+  // own prompt gate decides WHEN to first reach for the screen; the frontend just renders it,
+  // so a feature question that pulls up a view always appears. Before any view, the center is
+  // a warm "getting to know you" moment with the visitor on camera.
+  const showCompany = !!view;
 
   return (
     <div className={styles.stage}>
