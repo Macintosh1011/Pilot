@@ -217,7 +217,7 @@ final class Director: ObservableObject {
             case .greeting:
                 Task { await backend.createSession() }
                 after(2.5) { self.goTo(.conversation) }
-            case .conversation: voice?.start()
+            case .conversation: voice?.start(sessionId: backend.sessionId)
             default: break // attract waits for presence; badge stays until leave/new approach
             }
             return

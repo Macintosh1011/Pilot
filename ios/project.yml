@@ -35,6 +35,7 @@ targets:
       - package: convex-swift
         product: ConvexMobile
       - package: Vapi
+        product: Vapi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.parkt.boothpilot
